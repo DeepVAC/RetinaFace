@@ -119,7 +119,7 @@ class RetinaTest(Deepvac):
 if __name__ == "__main__":
     from config import config as deepvac_config
 
-    img = cv2.imread('./images/sample.jpg')
+    img = cv2.imread('./sample.jpg')
     retina_test = RetinaTest(deepvac_config.test)
     dets, landms = retina_test(img)
     print('dets: ', dets)
