@@ -9,9 +9,7 @@ import math
 import time
 import numpy as np
 import os
-import sys
 
-sys.path.insert(0, '/gemfield/hostpv/wangyuhang/github/deepvac')
 from deepvac.syszux_log import LOG
 from deepvac.syszux_deepvac import DeepvacTrain
 from deepvac.syszux_loss import MultiBoxLoss
@@ -95,57 +93,7 @@ class DeepvacRetina(DeepvacTrain):
         pass
 
     def postIter(self):
-        if self.is_train:
-            return
-        loc, conf, landms = self.output
-        conf = F.softmax(conf, dim=-1)
-        priorbox = PriorBox(self.conf.cfg, image_size=(self.sample.shape[2], self.sample.shape[3]))
-        priors = priorbox.forward()
-        priors = priors.to(self.device)
-        prior_data = priors.data
-        resize = 1.0
-        scale = torch.Tensor([self.sample.shape[3], self.sample.shape[2], self.sample.shape[3], self.sample.shape[2]])
-        scale = scale.to(self.device)
-        boxes = decode(loc.data.squeeze(0), prior_data, self.conf.cfg['variance'])
-        boxes = boxes * scale / resize
-        boxes = boxes.cpu().numpy()
-        scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
-        landms = decode_landm(landms.data.squeeze(0), prior_data, self.conf.cfg['variance'])
-        scale1 = torch.Tensor([self.sample.shape[1], self.sample.shape[3], self.sample.shape[1], self.sample.shape[3],
-                        self.sample.shape[1], self.sample.shape[3], self.sample.shape[1], self.sample.shape[3],
-                        self.sample.shape[1], self.sample.shape[3]])
-        scale1 = scale1.to(self.device)
-        landms = landms * scale1 / resize
-        landms = landms.cpu().numpy()
-        
-        # ignore low scores
-        inds = np.where(scores > self.conf.confidence_threshold)[0]
-        boxes = boxes[inds]
-        landms = landms[inds]
-        scores = scores[inds]
-        
-        # keep top-K before NMS
-        order = scores.argsort()[::-1]
-        # order = scores.argsort()[::-1][:args.top_k]
-        boxes = boxes[order]
-        landms = landms[order]
-        scores = scores[order]
-        
-        # do NMS
-        dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = py_cpu_nms(dets, self.conf.nms_threshold)
-
-        dets = dets[keep, :]
-        landms = landms[keep]
-        dets_np = dets
-        target_np = self.target[0].cpu().numpy()
-        ignore = np.ones(target_np.shape[0])
-        dets_np = dets_np.astype('float64')
-        target_np = target_np.astype('float64')
-        pred_recall, proposal_list = image_eval(dets_np, target_np, ignore, 0.5)
-        _img_pr_info = img_pr_info(1000, dets_np, proposal_list, pred_recall)
-        self.pr_curve += _img_pr_info
-        self.face_count += target_np.shape[0]
+        pass
 
     def postEpoch(self):
         if self.is_train:

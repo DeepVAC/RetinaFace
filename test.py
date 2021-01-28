@@ -3,8 +3,6 @@ import torch.backends.cudnn as cudnn
 
 import cv2
 import numpy as np
-import sys
-sys.path.insert(0, '/gemfield/hostpv/wangyuhang/github/deepvac')
 
 from deepvac.syszux_log import LOG
 from deepvac.syszux_deepvac import Deepvac
