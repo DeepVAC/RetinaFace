@@ -1,5 +1,5 @@
-# DeepVAC-RetinaFace
-DeepVAC-RetinaFace提供了基于DeepVAC项目和PyTorch的RetinaFace的实现。
+# RetinaFace
+DeepVAC-compliant RetinaFace implementation
 
 ### 项目依赖
 
