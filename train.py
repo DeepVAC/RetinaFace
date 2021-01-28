@@ -170,12 +170,5 @@ class DeepvacRetina(DeepvacTrain):
 
 if __name__ == "__main__":
     from config import config
-    #通过script的方式将pytorch训练的模型编译为TorchScript模型
-    #config.script_model_dir = '/gemfield/hostpv/wangyuhang/script.pt'
-
-    #通过trace的方式将pytorch训练的模型转换为TorchScript模型
-    config.trace_model_dir = '/gemfield/hostpv/wangyuhang/trace.pt'
-    #config.static_quantize_dir = './qua.pth'
-    #config.quantize_backend = 'fbgemm'
     dr = DeepvacRetina(config)
     dr()
