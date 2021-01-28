@@ -76,10 +76,7 @@ config.aug.img_dim = 640 if config.network=='mobilenet' else 840
 config.aug.rgb_means = (104, 117, 123)
 
 # val
-config.val.shuffle = True
-config.val.img_folder = '/ your val img folder /'
-config.val.batch_size = 1
-config.val.label_path = '/ your val list /'
+
 
 # test
 config.test.disable_git = True
