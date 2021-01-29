@@ -17,8 +17,7 @@ config.network = 'resnet50' or 'mobilenet'
 
 **准备数据**
 
-修改config.py文件，指定训练集对应的标注txt文件和训练集目录（暂且没有加入验证集的逻辑）
-指定网络结构，支持ResNet50以及MobileNetV3
+修改config.py文件，指定训练集对应的标注txt文件和训练集图片的存储目录
 
 
 ```
