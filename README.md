@@ -35,10 +35,10 @@ config.network = 'resnet50' or 'mobilenet'
 config.train.fileline_data_path_prefix = '/ your train image dir /'
 config.train.fileline_path = '/ your train.txt path /'
 ```
+## 5. 训练
 
-### 训练
-
-**单卡训练**
+### 5.1 单卡训练
+执行命令：
 
 ```bash
 python3 train.py
