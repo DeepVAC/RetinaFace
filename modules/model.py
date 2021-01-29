@@ -1,11 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-import torchvision.models.detection.backbone_utils as backbone_utils
 import torchvision.models._utils as _utils
-import torchvision.models as models
-from collections import OrderedDict
 
 from deepvac.syszux_modules import SSH, FPN
 from deepvac.syszux_mobilenet import MobileNetV3Large
