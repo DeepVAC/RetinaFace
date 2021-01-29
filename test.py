@@ -4,22 +4,23 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 
-from deepvac import LOG, Deepvac, PriorBox
-from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm
-from modules.model import RetinaFaceMobileNet
+from deepvac import LOG, Deepvac
+from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox
+from modules.model import RetinaFaceMobileNet, RetinaFaceResNet
 
-class RetinaTest(Deepvac):
+class RetinaMobileNetTest(Deepvac):
     def __init__(self, deepvac_config):
-        super(RetinaTest, self).__init__(deepvac_config)
+        super(RetinaMobileNetTest, self).__init__(deepvac_config)
         self.auditConfig()
+        self.priorbox_cfgs = {
+            'min_sizes': [[16, 32], [64, 128], [256, 512]],
+            'steps': [8, 16, 32],
+            'clip': False
+        }
+        self.variance = [0.1, 0.2]
     
     def auditConfig(self):
-        self.priorbox_cfgs = {
-                'min_sizes': [[16, 32], [64, 128], [256, 512]],
-                'steps': [8, 16, 32],
-                'clip': False,
-                }
-        self.variance = [0.1, 0.2]
+        pass
 
     def initNetWithCode(self):
         torch.set_grad_enabled(False)
@@ -95,11 +96,23 @@ class RetinaTest(Deepvac):
 
         return self._post_process(preds)
 
-if __name__ == "__main__":
-    from config import config as deepvac_config
+class RetinaResNetTest(RetinaMobileNetTest):
+    def auditConfig(self):
+        pass
 
+    def initNetWithCode(self):
+        torch.set_grad_enabled(False)
+        self.net = RetinaFaceMobileNet()
+
+if __name__ == "__main__":
+    from config import config
+    assert config.network == 'mobilenet' or config.network == 'resnet50', "config.network must be mobilenet or resnet50"
     img = cv2.imread('./sample.jpg')
-    retina_test = RetinaTest(deepvac_config.test)
+    
+    if config.network == 'mobilenet':
+        retina_test = RetinaMobileNetTest(config.test)
+    else:
+        retina_test = RetinaResNetTest(config.test)
     dets, landms = retina_test(img)
     print('dets: ', dets)
     print('landms: ', landms)
