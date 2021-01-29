@@ -22,10 +22,8 @@ config.gamma = 0.1
 # train
 config.train.shuffle = True
 config.train.batch_size = 12 if config.network=='mobilenet' else 6
-config.train.fileline_data_path_prefix = 'your train image dir'
-config.train.fileline_path = 'data/train_cls.txt'
-config.train.fileline_data_path_prefix = '/gemfield/hostpv/wangyuhang/data/widerface'
-config.train.fileline_path = '/gemfield/hostpv/wangyuhang/data/widerface/label_train5k.txt'
+config.train.fileline_data_path_prefix = '/ your train image dir /'
+config.train.fileline_path = '/ your train.txt path /'
 
 # aug
 config.aug = AttrDict()
@@ -37,8 +35,7 @@ config.aug.rgb_means = (104, 117, 123)
 
 # test
 config.test.disable_git = True
-config.test.model_path = '/gemfield/hostpv/wangyuhang/github/RetinaFace/output/disable_git/model__2021-01-29-09-31__acc_0.6574009873183714__epoch_108__step_964__lr_0.001.pth'
-config.test.model_path = './output/disable_git/model__2021-01-29-12-09__acc_1__epoch_0__step_496__lr_0.001.pth'
+config.test.model_path = '/ model path /'
 config.test.confidence_threshold = 0.02
 config.test.nms_threshold = 0.4
 config.test.top_k = 5000
