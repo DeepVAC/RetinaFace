@@ -15,25 +15,35 @@ from deepvac.syszux_deepvac import DeepvacTrain
 from deepvac.syszux_loss import MultiBoxLoss
 from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox
 
-from modules.model import RetinaFace
-
 from aug.aug import RetinaAug
+from modules.model import RetinaFaceMobileNet
 from synthesis.synthesis import RetinaTrainDataset, detection_collate
 
-class DeepvacRetina(DeepvacTrain):
-    def __init__(self, retina_config):
-        super(DeepvacRetina, self).__init__(retina_config)
-        priorbox = PriorBox(self.conf.cfg, image_size=self.conf.cfg['image_size'])
+class DeepvacRetinaMobileNet(DeepvacTrain):
+    def __init__(self, deepvac_config):
+        super(DeepvacRetinaMobileNet, self).__init__(deepvac_config)
+        self.auditConfig()
+        priorbox = PriorBox(self.priorbox_cfgs, self.image_size)
         with torch.no_grad():
             self.priors = priorbox.forward()
             self.priors = self.priors.to(self.device)
         self.step_index = 0
     
+    def auditConfig(self):
+        self.loc_weight = 2
+        self.lmk_weight = 3
+        self.lr_decay = [190, 220]
+        self.priorbox_cfgs = {
+                'min_sizes': [[16, 32], [64, 128], [256, 512]],
+                'steps': [8, 16, 32],
+                'clip': False,
+                }
+        self.image_size = (640, 640)
+
+
     def initNetWithCode(self):
-        self.net = RetinaFace(self.conf.cfg)
+        self.net = RetinaFaceMobileNet()
         self.net.to(self.conf.device)
-        if self.conf.cfg['ngpu'] > 1 and self.conf.cfg['gpu_train']:
-            self.net = torch.nn.DataParallel(self.net)
         
     def initScheduler(self):
         pass
@@ -42,7 +52,7 @@ class DeepvacRetina(DeepvacTrain):
         self.criterion = MultiBoxLoss(self.conf.cls_num, 0.35, True, 0, True, 7, 0.35, False, self.conf.device)
     
     def initTrainLoader(self):
-        self.train_dataset = RetinaTrainDataset(self.conf.train.label_path, RetinaAug(self.conf))
+        self.train_dataset = RetinaTrainDataset(self.conf.train, augument=RetinaAug(self.conf))
         self.train_loader = DataLoader(self.train_dataset, batch_size=self.conf.train.batch_size, num_workers=self.conf.num_workers, shuffle=self.conf.train.shuffle, collate_fn=detection_collate)
 
     def initValLoader(self):
@@ -61,7 +71,7 @@ class DeepvacRetina(DeepvacTrain):
         if not self.is_train:
             return
         self.loss_l, self.loss_c, self.loss_landm = self.criterion(self.output, self.priors, self.target)
-        self.loss = self.conf.cfg['loc_weight'] * self.loss_l + self.loss_c + 3 * self.loss_landm
+        self.loss = self.loc_weight * self.loss_l + self.loss_c + self.lmk_weight * self.loss_landm
 
 
     def doForward(self):
@@ -69,12 +79,9 @@ class DeepvacRetina(DeepvacTrain):
 
     def preEpoch(self):
         if self.is_train:
-            if self.epoch in [self.conf.cfg['decay1'], self.conf.cfg['decay2']]:
+            if self.epoch in self.lr_decay:
                 self.step_index += 1
             self.adjust_learning_rate()
-        else:
-            self.face_count = 0
-            self.pr_curve = 0
 
     def earlyIter(self):        
         start = time.time()
@@ -105,7 +112,14 @@ class DeepvacRetina(DeepvacTrain):
         pass
 
     def processVal(self, smoke=False):
-        pass
+        self.setValContext()
+        LOG.logI('Phase {} started...'.format(self.phase))
+        #prepare the static quant
+        self.exportStaticQuant(prepare=True)
+        with torch.no_grad():
+            self.preEpoch()
+            self.postEpoch()
+        self.saveState(self.getTime())
 
     def adjust_learning_rate(self):
         warmup_epoch = -1
@@ -116,7 +130,22 @@ class DeepvacRetina(DeepvacTrain):
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = self.conf.lr
 
+class DeepvacRetinaResNet(DeepvacRetinaMobileNet):
+    def auditConfig(self):
+        self.loc_weight = 2
+        self.lmk_weight = 3
+        self.lr_decay = [70, 90]
+        self.priorbox_cfgs = {
+                'min_sizes': [[16, 32], [64, 128], [256, 512]],
+                'steps': [8, 16, 32],
+                'clip': False,
+                }
+        self.image_size = (840, 840)
+
 if __name__ == "__main__":
     from config import config
-    dr = DeepvacRetina(config)
+    if config.network == 'mobilenet':
+        dr = DeepvacRetinaMobileNet(config)
+    else:
+        dr = DeepvacRetinaResNet(config)
     dr()

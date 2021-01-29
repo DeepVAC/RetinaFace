@@ -7,39 +7,29 @@ import cv2
 import numpy as np
 
 class RetinaTrainDataset(data.Dataset):
-    def __init__(self, txt_path, preproc=None):
-        self.preproc = preproc
-        self.imgs_path_t = []
-        self.words_t = []
-        f = open(txt_path,'r')
-        lines = f.readlines()
-        isFirst = True
-        labels = []
-        for line in lines:
-            line = line.rstrip()
-            if line.startswith('#'):
-                if isFirst is True:
-                    isFirst = False
-                else:
-                    labels_copy = labels.copy()
-                    self.words_t.append(labels_copy)
-                    labels.clear()
-                path = line[2:]
-                path = txt_path.replace('label_train5k.txt','') + path
-                self.imgs_path_t.append(path)
-            else:
-                line = line.split(' ')
-                label = [float(x) for x in line]
-                labels.append(label)
-        self.words_t.append(labels)
-        self.words = []
+    def __init__(self, deepvac_config, augument=None):
+        self.conf = deepvac_config
+        self.augument = augument
+        
+        with open(self.conf.fileline_path, 'r') as f:
+            lines = f.readlines()
+       
         self.imgs_path = []
-        for i in range(len(self.imgs_path_t)):
-            path_t = self.imgs_path_t[i].split('/')[-4:]
-            path_t = '/'.join(path_t)
-            self.imgs_path.append(self.imgs_path_t[i])
-            self.words.append(self.words_t[i])
+        self.words = []
+        
+        lines = list(map(lambda x: x.rstrip('\r\n'), lines))
+        flag = np.char.count(np.array(lines), '#')!=0
+        gaps = list(np.where(flag==True)[0])
+        gaps.append(len(lines))
+        
+        for i in range(len(gaps)-1):
+            path = lines[gaps[i]][2:]
+            path = os.path.join(self.conf.fileline_data_path_prefix, path)
+            self.imgs_path.append(path)
+            self.words.append(lines[gaps[i]+1:gaps[i+1]])
 
+        for i in range(len(self.words)):
+            self.words[i] = [list(map(float, word.split(' '))) for word in self.words[i]]
 
     def __len__(self):
         return len(self.imgs_path)
@@ -78,9 +68,9 @@ class RetinaTrainDataset(data.Dataset):
 
             annotations = np.append(annotations, annotation, axis=0)
         target = np.array(annotations)
-        if self.preproc is not None:
-            img, target = self.preproc(img, target)
-
+        if self.augument is not None:
+            img, target = self.augument(img, target)
+        
         return torch.from_numpy(img), target
 
 def detection_collate(batch):
@@ -104,6 +94,5 @@ def detection_collate(batch):
             elif isinstance(tup, type(np.empty(0))):
                 annos = torch.from_numpy(tup).float()
                 targets.append(annos)
-
     return (torch.stack(imgs, 0), targets)
 

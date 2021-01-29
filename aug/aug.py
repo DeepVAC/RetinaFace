@@ -1,6 +1,5 @@
 import random
 import numpy as np
-#from deepvac.syszux_aug import AugBase, RetinaCropAug, RetinaDistortAug, RetinaMirrorAug, RetinaPad2SquareAug, RetinaResizeSubtractMeanAug
 from deepvac.syszux_aug import AugBase
 from deepvac.syszux_executor import RetinaAugExecutor
 class RetinaAug(AugBase):
@@ -22,26 +21,8 @@ class RetinaAug(AugBase):
         labels = targets[:, -1].copy()
         landms = targets[:, 4:-1].copy()
 
-        #image_t, label = self._crop([image, [boxes, landm, labels]])
-        #boxes_t, landm_t, labels_t = label
-        
-        #image_t = self._distort(image_t)
         image_t, label  = self.aug([image, [boxes, landms, labels]])
         boxes_t, landms_t, labels_t = label
-
-        #image_t, label = self._pad_to_square([image_t, [boxes_t, landm_t, labels_t]])
-        #boxes_t, landm_t, _ = label
-        #if random.randrange(2):
-        #    image_t, label = self._mirror([image_t, [boxes_t, landm_t, labels_t]])
-        #    boxes_t, landm_t, _ = label
-        #height, width, _ = image_t.shape
-        #image_t, label = self._resize_subtract_mean([image_t, [boxes_t, landm_t, labels_t]])
-        #boxes_t, landm_t, _ = label
-        #boxes_t[:, 0::2] /= width
-        #boxes_t[:, 1::2] /= height
-
-        #landm_t[:, 0::2] /= width
-        #landm_t[:, 1::2] /= height
 
         labels_t = np.expand_dims(labels_t, 1)
         targets_t = np.hstack((boxes_t, landms_t, labels_t))

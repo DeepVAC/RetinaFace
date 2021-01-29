@@ -1,5 +1,5 @@
 import torch
-import torch.backends.cudnn as cudnn
+import torch.nn.functional as F
 
 import cv2
 import numpy as np
@@ -8,41 +8,24 @@ from deepvac.syszux_log import LOG
 from deepvac.syszux_deepvac import Deepvac
 from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox
 
-from modules.model import RetinaFace
+from modules.model import RetinaFaceMobileNet
 
-class RetinaTest(Deepvac):
-    def __init__(self, retina_config):
-        super(RetinaTest, self).__init__(retina_config)
+class RetinaTestMobileNet(Deepvac):
+    def __init__(self, deepvac_config):
+        super(RetinaTestMobileNet, self).__init__(deepvac_config)
+        self.auditConfig()
     
+    def auditConfig(self):
+        self.priorbox_cfgs = {
+                'min_sizes': [[16, 32], [64, 128], [256, 512]],
+                'steps': [8, 16, 32],
+                'clip': False,
+                }
+        self.variance = [0.1, 0.2]
+
     def initNetWithCode(self):
         torch.set_grad_enabled(False)
-        self.net = RetinaFace(self.conf.cfg, phase='test')
-        self.net = self._load_model(self.net, self.conf.trained_model, self.device)
-        self.net.eval()
-        print('Finished loading model!')
-        cudnn.benchmark = True
-        self.net.to(self.device)
-    
-    def _remove_prefix(self, state_dict, prefix):
-        ''' Old style model is stored with all names of parameters sharing common prefix 'module.' '''
-        print('remove prefix \'{}\''.format(prefix))
-        f = lambda x: x.split(prefix, 1)[-1] if x.startswith(prefix) else x
-        return {f(key): value for key, value in state_dict.items()}
-    
-    def _load_model(self, model, pretrained_path, device):
-        print('Loading pretrained model from {}'.format(pretrained_path))
-        if device == 'cpu':
-            pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage)
-        else:
-            device = torch.cuda.current_device()
-            pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage.cuda(device))
-        if "state_dict" in pretrained_dict.keys():
-            pretrained_dict = self._remove_prefix(pretrained_dict['state_dict'], 'module.')
-        else:
-            pretrained_dict = self._remove_prefix(pretrained_dict, 'module.')
-        #check_keys(model, pretrained_dict)
-        model.load_state_dict(pretrained_dict, strict=False)
-        return model
+        self.net = RetinaFaceMobileNet()
 
     def _pre_process(self, img_raw):
         h, w, c = img_raw.shape
@@ -60,20 +43,21 @@ class RetinaTest(Deepvac):
         self.img_raw = img_raw
 
     def _post_process(self, preds):
-        loc, conf, landms = preds
+        loc, cls, landms = preds
+        conf = F.softmax(cls, dim=-1)
         
-        priorbox = PriorBox(self.conf.cfg, image_size=(self.img_raw.shape[0], self.img_raw.shape[1]))
+        priorbox = PriorBox(self.priorbox_cfgs, image_size=(self.img_raw.shape[0], self.img_raw.shape[1]))
         priors = priorbox.forward()
         priors = priors.to(self.device)
         prior_data = priors.data
         resize = 1
         scale = torch.Tensor([self.input_tensor.shape[3], self.input_tensor.shape[2], self.input_tensor.shape[3], self.input_tensor.shape[2]])
         scale = scale.to(self.device)
-        boxes = decode(loc.data.squeeze(0), prior_data, self.conf.cfg['variance'])
+        boxes = decode(loc.data.squeeze(0), prior_data, self.variance)
         boxes = boxes * scale / resize
         boxes = boxes.cpu().numpy()
         scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
-        landms = decode_landm(landms.data.squeeze(0), prior_data, self.conf.cfg['variance'])
+        landms = decode_landm(landms.data.squeeze(0), prior_data, self.variance)
         scale1 = torch.Tensor([self.input_tensor.shape[3], self.input_tensor.shape[2], self.input_tensor.shape[3], self.input_tensor.shape[2],
                         self.input_tensor.shape[3], self.input_tensor.shape[2], self.input_tensor.shape[3], self.input_tensor.shape[2],
                         self.input_tensor.shape[3], self.input_tensor.shape[2]])
@@ -89,7 +73,6 @@ class RetinaTest(Deepvac):
         
         # keep top-K before NMS
         order = scores.argsort()[::-1][:self.conf.top_k]
-        # order = scores.argsort()[::-1][:args.top_k]
         boxes = boxes[order]
         landms = landms[order]
         scores = scores[order]
@@ -118,7 +101,7 @@ if __name__ == "__main__":
     from config import config as deepvac_config
 
     img = cv2.imread('./sample.jpg')
-    retina_test = RetinaTest(deepvac_config.test)
+    retina_test = RetinaTestMobileNet(deepvac_config.test)
     dets, landms = retina_test(img)
     print('dets: ', dets)
     print('landms: ', landms)

@@ -7,8 +7,6 @@ import torchvision.models._utils as _utils
 import torchvision.models as models
 from collections import OrderedDict
 
-import sys
-sys.path.insert(0, '/gemfield/hostpv/wangyuhang/github/deepvac')
 from deepvac.syszux_modules import SSH, FPN
 from deepvac.syszux_mobilenet import MobileNetV3Large
 
@@ -46,50 +44,27 @@ class LandmarkHead(nn.Module):
 
         return out.view(out.shape[0], -1, 10)
 
-class RetinaFace(nn.Module):
-    def __init__(self, cfg = None, phase = 'train'):
-        """
-        :param cfg:  Network related settings.
-        :param phase: train or test.
-        """
-        assert cfg['name'] == 'mobilenet' or cfg['name'] == 'Resnet50', "cfg['name'] can only be mobilenet or Resnet50"
-        super(RetinaFace,self).__init__()
-        self.phase = phase
-        backbone = None
-        in_channels_list = []
-        if cfg['name'] == 'mobilenet':
-            backbone = MobileNetV3Large()
-            in_channels_list = cfg['in_channels_list']
+class RetinaFaceMobileNet(nn.Module):
+    def __init__(self):
+        super(RetinaFaceMobileNet, self).__init__()
+        self.auditConfig()
 
-            if cfg['pretrain']:
-                checkpoint = torch.load("./weights/", map_location=torch.device('cpu'))
-                from collections import OrderedDict
-                new_state_dict = OrderedDict()
-                for k, v in checkpoint['state_dict'].items():
-                    name = k[7:]  # remove module.
-                    new_state_dict[name] = v
-                # load params
-                backbone.load_state_dict(new_state_dict)
-            self.body = _utils.IntermediateLayerGetter(backbone._modules['features'], cfg['return_layers'])
-        elif cfg['name'] == 'Resnet50':
-            backbone = models.resnet50(pretrained=cfg['pretrain'])
-            in_channels_stage2 = cfg['in_channel']
-            in_channels_list = [
-                in_channels_stage2 * 2,
-                in_channels_stage2 * 4,
-                in_channels_stage2 * 8
-            ]
-            self.body = _utils.IntermediateLayerGetter(backbone, cfg['return_layers'])
+        self.fpn = FPN(self.in_channels_list, self.out_channels)
+        self.ssh1 = SSH(self.out_channels, self.out_channels)
+        self.ssh2 = SSH(self.out_channels, self.out_channels)
+        self.ssh3 = SSH(self.out_channels, self.out_channels)
+        
+        self.ClassHead = self._make_class_head(fpn_num=3, inchannels=self.out_channels)
+        self.BboxHead = self._make_bbox_head(fpn_num=3, inchannels=self.out_channels)
+        self.LandmarkHead = self._make_landmark_head(fpn_num=3, inchannels=self.out_channels)
+    
+    def auditConfig(self):
+        self.backbone = MobileNetV3Large()
+        self.in_channels_list = [40, 80, 160]
+        self.return_layers = {'5': '1', '10': '2', '15': '3'}
+        self.out_channels = 64
 
-        out_channels = cfg['out_channel']
-        self.fpn = FPN(in_channels_list,out_channels)
-        self.ssh1 = SSH(out_channels, out_channels)
-        self.ssh2 = SSH(out_channels, out_channels)
-        self.ssh3 = SSH(out_channels, out_channels)
-
-        self.ClassHead = self._make_class_head(fpn_num=3, inchannels=cfg['out_channel'])
-        self.BboxHead = self._make_bbox_head(fpn_num=3, inchannels=cfg['out_channel'])
-        self.LandmarkHead = self._make_landmark_head(fpn_num=3, inchannels=cfg['out_channel'])
+        self.body = _utils.IntermediateLayerGetter(self.backbone._modules['features'], self.return_layers)
 
     def _make_class_head(self,fpn_num=3,inchannels=64,anchor_num=2):
         classhead = nn.ModuleList()
@@ -124,8 +99,13 @@ class RetinaFace(nn.Module):
         classifications = torch.cat([self.ClassHead[i](feature) for i, feature in enumerate(features)],dim=1)
         ldm_regressions = torch.cat([self.LandmarkHead[i](feature) for i, feature in enumerate(features)], dim=1)
 
-        if self.phase == 'train':
-            output = (bbox_regressions, classifications, ldm_regressions)
-        else:
-            output = (bbox_regressions, F.softmax(classifications, dim=-1), ldm_regressions)
-        return output
+        return (bbox_regressions, classifications, ldm_regressions)
+
+class RetinaFaceResNet(RetinaFaceMobileNet):
+    def auditConfig(self):
+        self.backbone = models.resnet50(pretrained=False)
+        self.in_channels_list = [512, 1024, 2048]
+        self.return_layers = {'layer2': 1, 'layer3': 2, 'layer4': 3}
+        self.out_channels = 256
+        
+        self.body = _utils.IntermediateLayerGetter(backbone, self.return_layers)
