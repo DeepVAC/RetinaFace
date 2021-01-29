@@ -1,7 +1,7 @@
 import random
 import numpy as np
-from deepvac import RetinaAugExecutor, AugBase
-class RetinaAug(AugBase):
+from deepvac import RetinaAugExecutor
+class RetinaAug(object):
 
     def __init__(self, deepvac_config):
         self.conf = deepvac_config.aug
@@ -15,9 +15,9 @@ class RetinaAug(AugBase):
     def __call__(self, image, targets):
         assert targets.shape[0] > 0, "this image does not have gt"
 
-        boxes = targets[:, :4].copy()
-        labels = targets[:, -1].copy()
-        landms = targets[:, 4:-1].copy()
+        boxes = targets[:, :4]
+        labels = targets[:, -1]
+        landms = targets[:, 4:-1]
 
         image_t, label  = self.aug([image, [boxes, landms, labels]])
         boxes_t, landms_t, labels_t = label

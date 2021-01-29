@@ -8,7 +8,6 @@ import math
 import time
 import numpy as np
 import os
-
 from deepvac import LOG, DeepvacTrain, is_ddp
 from deepvac.syszux_loss import MultiBoxLoss
 from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox

@@ -40,6 +40,24 @@ class LandmarkHead(nn.Module):
 
         return out.view(out.shape[0], -1, 10)
 
+class RetinaFaceMobileNetBackbone(MobileNetV3Large):
+    def __init__(self):
+        super(RetinaFaceMobileNetBackbone, self).__init__()
+        self.return_layers = [5, 10, 15]
+
+    def forward(self, x):
+        out = []
+        for i, fea in enumerate(self.features):
+            x = fea(x)
+            if i in self.return_layers:
+                out.append(x)
+        x = self.conv(x)
+        x = self.pool(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return out
+
+
 class RetinaFaceMobileNet(nn.Module):
     def __init__(self):
         super(RetinaFaceMobileNet, self).__init__()
@@ -55,12 +73,9 @@ class RetinaFaceMobileNet(nn.Module):
         self.LandmarkHead = self._make_landmark_head(fpn_num=3, inchannels=self.out_channels)
     
     def auditConfig(self):
-        self.backbone = MobileNetV3Large()
         self.in_channels_list = [40, 80, 160]
-        self.return_layers = {'5': '1', '10': '2', '15': '3'}
         self.out_channels = 64
-
-        self.body = _utils.IntermediateLayerGetter(self.backbone._modules['features'], self.return_layers)
+        self.body = RetinaFaceMobileNetBackbone()
 
     def _make_class_head(self,fpn_num=3,inchannels=64,anchor_num=2):
         classhead = nn.ModuleList()
@@ -102,15 +117,14 @@ class RetinaFaceResNetBackbone(ResNet50):
         self.return_layers = [6, 12, 15]
     
     def forward(self, x):
-        out = {}
+        out = []
         index = 1
         x = self.conv1(x)
         x = self.maxpool(x)
         for i, lay in enumerate(self.layer):
             x = lay(x)
             if i in self.return_layers:
-                out[str(index)] = x
-                index += 1
+                out.append(x)
         x = self.avgpool(x)
         return out
 
