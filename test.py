@@ -4,9 +4,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 
-from deepvac.syszux_log import LOG
-from deepvac.syszux_deepvac import Deepvac
-from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox
+from deepvac import LOG, Deepvac, py_cpu_nms, decode, decode_landm, PriorBox
 
 from modules.model import RetinaFaceMobileNet
 

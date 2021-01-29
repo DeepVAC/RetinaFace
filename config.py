@@ -25,6 +25,10 @@ config.train.batch_size = 12 if config.network=='mobilenet' else 6
 config.train.fileline_data_path_prefix = '/ your train image dir /'
 config.train.fileline_path = '/ your train.txt path /'
 
+# DDP
+config.dist_url = 'tcp://localhost:27030'
+config.world_size = 2
+
 # aug
 config.aug = AttrDict()
 config.aug.img_dim = 640 if config.network=='mobilenet' else 840

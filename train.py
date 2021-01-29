@@ -10,10 +10,7 @@ import time
 import numpy as np
 import os
 
-from deepvac.syszux_log import LOG
-from deepvac.syszux_deepvac import DeepvacTrain
-from deepvac.syszux_loss import MultiBoxLoss
-from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox
+from deepvac import LOG, DeepvacTrain, MultiBoxLoss, py_cpu_nms, decode, decode_landm, PriorBox, is_ddp
 
 from aug.aug import RetinaAug
 from modules.model import RetinaFaceMobileNet
@@ -53,7 +50,16 @@ class DeepvacRetinaMobileNet(DeepvacTrain):
     
     def initTrainLoader(self):
         self.train_dataset = RetinaTrainDataset(self.conf.train, augument=RetinaAug(self.conf))
-        self.train_loader = DataLoader(self.train_dataset, batch_size=self.conf.train.batch_size, num_workers=self.conf.num_workers, shuffle=self.conf.train.shuffle, collate_fn=detection_collate)
+        if is_ddp:
+            self.train_sampler = torch.utils.data.distributed.DistributedSampler(self.train_dataset)
+        self.train_loader = DataLoader(
+            self.train_dataset, 
+            batch_size=self.conf.train.batch_size, 
+            num_workers=self.conf.num_workers, 
+            shuffle= False if is_ddp else self.conf.train.shuffle, 
+            sampler=self.train_sampler if is_ddp else None
+            collate_fn=detection_collate
+        )
 
     def initValLoader(self):
         self.val_dataset = None

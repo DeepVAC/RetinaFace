@@ -27,10 +27,29 @@ config.train.fileline_path = '/ your train.txt path /'
 
 ### 训练
 
+**单卡训练**
 
 ```
 python3 train.py
 ```
+
+**DDP训练**
+
+修改world_size
+
+```
+config.world_size = 2
+
+```
+启动训练
+
+```
+python train.py --rank 0 --gpu 0
+python train.py --rank 1 --gpu 1
+...
+```
+这里启动的训练命令数与world_size对应，0为主进程
+
 
 ### 测试
 
