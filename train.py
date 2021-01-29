@@ -2,7 +2,6 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch import nn
 from torch import optim
-import torch.nn.functional as F
 
 import cv2
 import math
@@ -10,15 +9,23 @@ import time
 import numpy as np
 import os
 
-from deepvac import LOG, DeepvacTrain, MultiBoxLoss, py_cpu_nms, decode, decode_landm, PriorBox, is_ddp
-
+from deepvac import LOG, DeepvacTrain, is_ddp
+from deepvac.syszux_loss import MultiBoxLoss
+from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox
 from aug.aug import RetinaAug
-from modules.model import RetinaFaceMobileNet
+from modules.model import RetinaFaceMobileNet, RetinaFaceResNet
 from synthesis.synthesis import RetinaTrainDataset, detection_collate
 
-class DeepvacRetinaMobileNet(DeepvacTrain):
+class RetinaMobileNetTrain(DeepvacTrain):
     def __init__(self, deepvac_config):
-        super(DeepvacRetinaMobileNet, self).__init__(deepvac_config)
+        super(RetinaMobileNetTrain, self).__init__(deepvac_config)
+        self.loc_weight = 2
+        self.lmk_weight = 3
+        self.priorbox_cfgs = {
+            'min_sizes': [[16, 32], [64, 128], [256, 512]],
+            'steps': [8, 16, 32],
+            'clip': False,                                               
+        }
         self.auditConfig()
         priorbox = PriorBox(self.priorbox_cfgs, self.image_size)
         with torch.no_grad():
@@ -27,16 +34,8 @@ class DeepvacRetinaMobileNet(DeepvacTrain):
         self.step_index = 0
     
     def auditConfig(self):
-        self.loc_weight = 2
-        self.lmk_weight = 3
         self.lr_decay = [190, 220]
-        self.priorbox_cfgs = {
-                'min_sizes': [[16, 32], [64, 128], [256, 512]],
-                'steps': [8, 16, 32],
-                'clip': False,
-                }
         self.image_size = (640, 640)
-
 
     def initNetWithCode(self):
         self.net = RetinaFaceMobileNet()
@@ -57,7 +56,7 @@ class DeepvacRetinaMobileNet(DeepvacTrain):
             batch_size=self.conf.train.batch_size, 
             num_workers=self.conf.num_workers, 
             shuffle= False if is_ddp else self.conf.train.shuffle, 
-            sampler=self.train_sampler if is_ddp else None
+            sampler=self.train_sampler if is_ddp else None,
             collate_fn=detection_collate
         )
 
@@ -89,7 +88,7 @@ class DeepvacRetinaMobileNet(DeepvacTrain):
                 self.step_index += 1
             self.adjust_learning_rate()
 
-    def earlyIter(self):        
+    def earlyIter(self): 
         start = time.time()
         self.sample = self.sample.to(self.device)
         self.target = [anno.to(self.device) for anno in self.target]
@@ -136,22 +135,20 @@ class DeepvacRetinaMobileNet(DeepvacTrain):
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = self.conf.lr
 
-class DeepvacRetinaResNet(DeepvacRetinaMobileNet):
+class RetinaResNetTrain(RetinaMobileNetTrain):
     def auditConfig(self):
-        self.loc_weight = 2
-        self.lmk_weight = 3
         self.lr_decay = [70, 90]
-        self.priorbox_cfgs = {
-                'min_sizes': [[16, 32], [64, 128], [256, 512]],
-                'steps': [8, 16, 32],
-                'clip': False,
-                }
         self.image_size = (840, 840)
+
+    def initNetWithCode(self):
+        self.net = RetinaFaceResNet()
+        self.net.to(self.conf.device)
 
 if __name__ == "__main__":
     from config import config
+    assert config.network == 'mobilenet' or config.network == 'resnet50', "config.network must be mobilenet or resnet50"
     if config.network == 'mobilenet':
-        dr = DeepvacRetinaMobileNet(config)
+        train = RetinaMobileNetTrain(config)
     else:
-        dr = DeepvacRetinaResNet(config)
-    dr()
+        train = RetinaResNetTrain(config)
+    train()

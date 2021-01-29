@@ -4,13 +4,13 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 
-from deepvac import LOG, Deepvac, py_cpu_nms, decode, decode_landm, PriorBox
-
+from deepvac import LOG, Deepvac, PriorBox
+from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm
 from modules.model import RetinaFaceMobileNet
 
-class RetinaTestMobileNet(Deepvac):
+class RetinaTest(Deepvac):
     def __init__(self, deepvac_config):
-        super(RetinaTestMobileNet, self).__init__(deepvac_config)
+        super(RetinaTest, self).__init__(deepvac_config)
         self.auditConfig()
     
     def auditConfig(self):
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     from config import config as deepvac_config
 
     img = cv2.imread('./sample.jpg')
-    retina_test = RetinaTestMobileNet(deepvac_config.test)
+    retina_test = RetinaTest(deepvac_config.test)
     dets, landms = retina_test(img)
     print('dets: ', dets)
     print('landms: ', landms)

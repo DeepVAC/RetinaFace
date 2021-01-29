@@ -1,13 +1,16 @@
 import random
 import numpy as np
-from deepvac.syszux_executor import RetinaAugExecutor
-class RetinaAug(object):
+from deepvac import RetinaAugExecutor, AugBase
+class RetinaAug(AugBase):
 
     def __init__(self, deepvac_config):
         self.conf = deepvac_config.aug
         assert self.conf.img_dim, "please set config.aug.img_dim in config"
         assert self.conf.rgb_means, "please set config.aug.rgb_means in config"
         self.aug = RetinaAugExecutor(self.conf)
+
+    def auditConfig(self):
+        pass
 
     def __call__(self, image, targets):
         assert targets.shape[0] > 0, "this image does not have gt"

@@ -9,6 +9,7 @@ from collections import OrderedDict
 
 from deepvac.syszux_modules import SSH, FPN
 from deepvac.syszux_mobilenet import MobileNetV3Large
+from deepvac.syszux_resnet import ResNet50
 
 class ClassHead(nn.Module):
     def __init__(self,inchannels=512,num_anchors=3):
@@ -101,11 +102,27 @@ class RetinaFaceMobileNet(nn.Module):
 
         return (bbox_regressions, classifications, ldm_regressions)
 
+class RetinaFaceResNetBackbone(ResNet50):
+    def initFc(self):
+        self.return_layers = [6, 12, 15]
+    
+    def forward(self, x):
+        out = {}
+        index = 1
+        x = self.conv1(x)
+        x = self.maxpool(x)
+        for i, lay in enumerate(self.layer):
+            x = lay(x)
+            if i in self.return_layers:
+                out[str(index)] = x
+                index += 1
+        x = self.avgpool(x)
+        return out
+
 class RetinaFaceResNet(RetinaFaceMobileNet):
     def auditConfig(self):
-        self.backbone = models.resnet50(pretrained=False)
         self.in_channels_list = [512, 1024, 2048]
-        self.return_layers = {'layer2': 1, 'layer3': 2, 'layer4': 3}
+        self.return_layers = {'':  1, '12':  2, '15':  3}
         self.out_channels = 256
+        self.body = RetinaFaceResNetBackbone()
         
-        self.body = _utils.IntermediateLayerGetter(backbone, self.return_layers)

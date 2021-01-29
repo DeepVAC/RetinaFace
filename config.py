@@ -1,9 +1,9 @@
 import torch 
-from deepvac import config
+from deepvac import config, AttrDict
 from torchvision import transforms
 
 # general
-config.network = 'mobilenet' #'resnet50' or 'mobilenet'
+config.network = 'resnet50' #'resnet50' or 'mobilenet'
 
 config.disable_git = True
 config.cls_num = 2
@@ -24,6 +24,8 @@ config.train.shuffle = True
 config.train.batch_size = 12 if config.network=='mobilenet' else 6
 config.train.fileline_data_path_prefix = '/ your train image dir /'
 config.train.fileline_path = '/ your train.txt path /'
+config.train.fileline_data_path_prefix = '/gemfield/hostpv/wangyuhang/data/widerface'
+config.train.fileline_path = '/gemfield/hostpv/wangyuhang/data/widerface/label_train5k.txt'
 
 # DDP
 config.dist_url = 'tcp://localhost:27030'

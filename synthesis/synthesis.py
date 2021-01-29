@@ -70,7 +70,7 @@ class RetinaTrainDataset(data.Dataset):
         target = np.array(annotations)
         if self.augument is not None:
             img, target = self.augument(img, target)
-        
+       
         return torch.from_numpy(img), target
 
 def detection_collate(batch):
@@ -95,4 +95,3 @@ def detection_collate(batch):
                 annos = torch.from_numpy(tup).float()
                 targets.append(annos)
     return (torch.stack(imgs, 0), targets)
-
