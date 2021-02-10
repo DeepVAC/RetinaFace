@@ -22,13 +22,15 @@ DeepVAC-compliant RetinaFace implementation
 
 ## 3. 准备数据集
 - 获取widerface数据集      
-[widerface](http://shuoyang1213.me/WIDERFACE)
+[widerface官网](http://shuoyang1213.me/WIDERFACE)
 
 - 数据集配置
 在config.py文件中作如下配置：     
-config.train.fileline_data_path_prefix = '/ your train image dir /'
-config.train.fileline_path = '/ your train.txt path /'
-config.test.input_dir = '/ your test image dir /'
+```python
+config.train.fileline_data_path_prefix = <train-image-dir>
+config.train.fileline_path = <train-list-path>
+config.test.input_dir = <test-image-dir>
+```
 
 - 如果是自己的数据集，那么必须要跟widerface的标注格式一致
 
