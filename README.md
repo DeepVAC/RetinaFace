@@ -6,8 +6,9 @@ DeepVAC-compliant RetinaFace implementation
 
 ### 项目依赖
 
-- deepvac
-- pytorch
+- deepvac >= 0.2.6
+- pytorch >= 1.8.0
+- torchvision >= 0.7.0
 - opencv-python
 - numpy
 
@@ -20,20 +21,37 @@ DeepVAC-compliant RetinaFace implementation
 使用Deepvac规范指定[Docker镜像](https://github.com/DeepVAC/deepvac#2-%E7%8E%AF%E5%A2%83%E5%87%86%E5%A4%87)。
 
 ## 3. 准备数据集
-自行准备。
+- 获取widerface数据集      
+[widerface官网](http://shuoyang1213.me/WIDERFACE)
 
-## 4. 修改配置文件
-修改config.py文件，指定模型结构，支持ResNet50和MobileNetV3
+- 数据集配置
+在config.py文件中作如下配置：     
+```python
+config.train.fileline_data_path_prefix = <train-image-dir>
+config.train.fileline_path = <train-list-path>
+config.test.input_dir = <test-image-dir>
+```
+
+- 如果是自己的数据集，那么必须要跟widerface的标注格式一致
+
+## 4. 训练相关配置
+- 指定预训练模型路径(config.model_path)      
+- 指定网络结构，支持ResNet50和MobileNetV3(config.model_path)
+- 指定训练分类数量(config.class_num)    
+- 指定学习率策略相关参数(config.momentum, config.weight_decay, config.lr, config.gamma)
+- dataloader相关配置(config.train)     
 
 ```python
-config.network = 'resnet50' or 'mobilenet'
-```
+config.model_path = ''
+config.network = 'mobilenet' or 'resnet50'
+config.class_num = 2
+config.momentum = 0.9
+config.weight_decay = 5e-4
+config.lr = 1e-3
+config.gamma = 0.1
+config.train.shuffle = True
+config.train.batch_size = 12 if config.network=='mobilenet' else 6
 
-修改config.py文件，指定训练集对应的标注txt文件和训练集图片的存储目录
-
-```
-config.train.fileline_data_path_prefix = '/ your train image dir /'
-config.train.fileline_path = '/ your train.txt path /'
 ```
 ## 5. 训练
 
@@ -62,19 +80,65 @@ python train.py --rank 1 --gpu 1
 ```
 
 
-### 测试
+## 6. 测试
 
-指定要测试模型的路径，在config.py指定待测模型路径：
+- 测试相关配置
 
 ```python
-config.test.model_path = 'model path'
+config.test.input_dir = <test-image-dir>
+config.test.confidence_threshold = 0.02
+config.test.nms_threshold = 0.4
+config.test.top_k = 5000
+config.test.keep_top_k = 1
+config.test.max_edge = 2000
+config.test.rgb_means = (104, 117, 123)
 ```
-然后运行测试脚本：
+
+- 加载模型(*.pth)
 
 ```python
+config.model_path = <trained-model-path>
+```
+
+- 运行测试脚本：
+
+```bash
 python3 test.py
 ```
-## 7， 更多功能
+## 7. 使用trace模型
+如果训练过程中未开启config.trace_model_dir开关，可以在测试过程中转化torchscript模型     
+
+- 转换torchscript模型(*.pt)     
+
+```python
+config.trace_model_dir = "output/trace.pt"
+```
+
+按照步骤6完成测试，torchscript模型将保存至config.torchscript_model_dir指定文件位置      
+
+- 加载torchscript模型
+
+```python
+config.jit_model_path = <torchscript-model-path>
+```
+
+## 8. 使用静态量化模型
+如果训练过程中未开启config.static_quantize_dir开关，可以在测试过程中转化静态量化模型     
+- 转换静态模型(*.sq)     
+
+```python
+config.static_quantize_dir = "output/trace.sq"
+```
+按照步骤6完成测试，静态量化模型将保存至config.static_quantize_dir指定文件位置      
+
+- 加载静态量化模型
+
+```python
+config.jit_model_path = <static-quantize-model-path>
+```
+
+
+## 9. 更多功能
 如果要在本项目中开启如下功能：
 - 预训练模型加载
 - checkpoint加载
@@ -86,5 +150,5 @@ python3 test.py
 - 开启量化
 - 开启自动混合精度训练
 
-请参考[DeepVAC](https://github.com/DeepVAC/deepvac)。
+请参考[DeepVAC](https://github.com/DeepVAC/deepvac)
 
