@@ -21,8 +21,16 @@ DeepVAC-compliant RetinaFace implementation
 使用Deepvac规范指定[Docker镜像](https://github.com/DeepVAC/deepvac#2-%E7%8E%AF%E5%A2%83%E5%87%86%E5%A4%87)。
 
 ## 3. 准备数据集
-- 获取widerface数据集      
-[widerface官网](http://shuoyang1213.me/WIDERFACE)
+
+- 获取WIDER Face数据集      
+[WIDER Face Training Images](https://share.weiyun.com/5WjCBWV)
+[WIDER Face Testing Images](https://share.weiyun.com/5vSUomP)
+[Face annotations](http://mmlab.ie.cuhk.edu.hk/projects/WIDERFace/support/example/Submission_example.zip)
+
+- 若想进一步了解WIDER Face数据集，可参考官网上的信息。    
+[WIDER Face官网](http://shuoyang1213.me/WIDERFACE)
+
+- 解压WIDER Face数据集
 
 - 数据集配置
 在config.py文件中作如下配置：     
@@ -31,6 +39,7 @@ config.train.fileline_data_path_prefix = <train-image-dir>
 config.train.fileline_path = <train-list-path>
 config.test.input_dir = <test-image-dir>
 ```
+- 测试集可自己设定，设置config.test.input_dir参数即可。   
 
 - 如果是自己的数据集，那么必须要跟widerface的标注格式一致
 
