@@ -83,9 +83,9 @@ python train.py --rank 1 --gpu 1
 ## 6. 测试
 
 - 测试相关配置
-config.test.input_dir = <test-data-path>
 
 ```python
+config.test.input_dir = <test-image-dir>
 config.test.confidence_threshold = 0.02
 config.test.nms_threshold = 0.4
 config.test.top_k = 5000
