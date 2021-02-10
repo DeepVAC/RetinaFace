@@ -4,9 +4,32 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 
-from deepvac import LOG, Deepvac
+from deepvac import LOG, Deepvac, OsWalkDataset
 from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox
 from modules.model import RetinaFaceMobileNet, RetinaFaceResNet
+
+class RetinaTestDataset(OsWalkDataset):
+    def __init__(self, deepvac_config):
+        self.conf = deepvac_config
+        super(RetinaTestDataset, self).__init__(deepvac_config.test)
+
+    def __getitem__(self, index):
+        path = self.files[index]
+        img_raw = cv2.imread(path, 1)
+        h, w, c = img_raw.shape
+        max_edge = max(h,w)
+        
+        if(max_edge > self.conf.test.max_edge):
+        
+            img_raw = cv2.resize(img_raw,(int(w * self.conf.test.max_edge / max_edge), int(h * self.conf.test.max_edge / max_edge)))
+
+        img = np.float32(img_raw)
+        im_height, im_width, _ = img.shape
+        img -= self.conf.test.rgb_means
+        img = img.transpose(2, 0, 1)
+        input_tensor = torch.from_numpy(img)
+
+        return input_tensor, path
 
 class RetinaMobileNetTest(Deepvac):
     def __init__(self, deepvac_config):
@@ -18,6 +41,7 @@ class RetinaMobileNetTest(Deepvac):
             'clip': False
         }
         self.variance = [0.1, 0.2]
+        self.initTestLoader()
     
     def auditConfig(self):
         pass
@@ -26,20 +50,9 @@ class RetinaMobileNetTest(Deepvac):
         torch.set_grad_enabled(False)
         self.net = RetinaFaceMobileNet()
 
-    def _pre_process(self, img_raw):
-        h, w, c = img_raw.shape
-        max_edge = max(h,w)
-        if(max_edge > self.conf.max_edge):
-            img_raw = cv2.resize(img_raw,(int(w * self.conf.max_edge / max_edge), int(h * self.conf.max_edge / max_edge)))
-
-        img = np.float32(img_raw)
-
-        im_height, im_width, _ = img.shape
-        img -= self.conf.rgb_means
-        img = img.transpose(2, 0, 1)
-        self.input_tensor = torch.from_numpy(img).unsqueeze(0)
-        self.input_tensor = self.input_tensor.to(self.device)
-        self.img_raw = img_raw
+    def initTestLoader(self):
+        self.test_dataset = RetinaTestDataset(self.conf)
+        self.test_loader = torch.utils.data.DataLoader(self.test_dataset, batch_size=1, pin_memory=False)
 
     def _post_process(self, preds):
         loc, cls, landms = preds
@@ -65,36 +78,41 @@ class RetinaMobileNetTest(Deepvac):
         landms = landms.cpu().numpy()
 
         # ignore low scores
-        inds = np.where(scores > self.conf.confidence_threshold)[0]
+        inds = np.where(scores > self.conf.test.confidence_threshold)[0]
         boxes = boxes[inds]
         landms = landms[inds]
         scores = scores[inds]
         
         # keep top-K before NMS
-        order = scores.argsort()[::-1][:self.conf.top_k]
+        order = scores.argsort()[::-1][:self.conf.test.top_k]
         boxes = boxes[order]
         landms = landms[order]
         scores = scores[order]
         
         # do NMS
         dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = py_cpu_nms(dets, self.conf.nms_threshold)
+        keep = py_cpu_nms(dets, self.conf.test.nms_threshold)
         dets = dets[keep, :]
         landms = landms[keep]
 
         # keep top-K faster NMS
-        dets = dets[:self.conf.keep_top_k, :]
-        landms = landms[:self.conf.keep_top_k, :]
+        dets = dets[:self.conf.test.keep_top_k, :]
+        landms = landms[:self.conf.test.keep_top_k, :]
         
         assert len(dets)==len(landms), "the number of det and landm in the image must be equal."
         
         return dets, landms
 
-    def __call__(self, image):
-        self._pre_process(image)
-        preds = self.net(self.input_tensor)
+    def process(self):
+        for input_tensor, path in self.test_loader:
+            self.input_tensor = input_tensor.to(self.device)
+            self.img_raw = input_tensor.cpu().numpy().squeeze(0).transpose((1, 2, 0))
+            preds = self.net(self.input_tensor.to(self.device))
 
-        return self._post_process(preds)
+            dets, landms = self._post_process(preds)
+            print('path: ', path)
+            print('dets: ', dets)
+            print('landms: ', landms)
 
 class RetinaResNetTest(RetinaMobileNetTest):
     def auditConfig(self):
@@ -102,17 +120,16 @@ class RetinaResNetTest(RetinaMobileNetTest):
 
     def initNetWithCode(self):
         torch.set_grad_enabled(False)
-        self.net = RetinaFaceMobileNet()
+        self.net = RetinaFaceResNet()
 
 if __name__ == "__main__":
     from config import config
     assert config.network == 'mobilenet' or config.network == 'resnet50', "config.network must be mobilenet or resnet50"
-    img = cv2.imread('./sample.jpg')
     
     if config.network == 'mobilenet':
-        retina_test = RetinaMobileNetTest(config.test)
+        retina_test = RetinaMobileNetTest(config)
     else:
-        retina_test = RetinaResNetTest(config.test)
-    dets, landms = retina_test(img)
-    print('dets: ', dets)
-    print('landms: ', landms)
+        retina_test = RetinaResNetTest(config)
+    input_tensor = torch.rand(1,3,640,640)
+    retina_test(input_tensor)
+    

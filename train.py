@@ -118,8 +118,6 @@ class RetinaMobileNetTrain(DeepvacTrain):
     def processVal(self, smoke=False):
         self.setValContext()
         LOG.logI('Phase {} started...'.format(self.phase))
-        #prepare the static quant
-        self.exportStaticQuant(prepare=True)
         with torch.no_grad():
             self.preEpoch()
             self.postEpoch()
