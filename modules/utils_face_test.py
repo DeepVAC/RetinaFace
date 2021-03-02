@@ -52,6 +52,22 @@ class RetinaTest(Deepvac):
         self.input_tensor = self.input_tensor.to(self.device)
         self.img_raw = img_raw
 
+    def _processWithNoAlign(self, dets):
+        detected_imgs = []
+        for det in dets:
+            det = [0 if d < 0 else d for d in det]
+            detected_img = self.img_raw[int(det[1]):int(det[3]), int(det[0]):int(det[2])]
+            detected_img = cv2.resize(detected_img, (112, 112))
+            detected_imgs.append(detected_img)
+        return detected_imgs
+
+    def _processWithAlign(self, landms, dets, align_type):
+        detected_imgs = []
+        for landmark, det in zip(landms, dets):
+            detected_img = self.align_face(self.img_raw, landmark, det, align_type)
+            detected_imgs.append(detected_img)
+        return detected_imgs
+
     def _post_process(self, preds, align_type):
         loc, cls, landms = preds
         conf = F.softmax(cls, dim=-1)
@@ -99,22 +115,10 @@ class RetinaTest(Deepvac):
         landms = landms[:self.conf.keep_top_k, :]
         if len(dets)==0:
             return []
-        detected_imgs = []
         if align_type == 'no_align':
-            for det in dets:
-                for det_i in range(len(det)):
-                    if det[det_i] < 0:
-                        det[det_i] = 0
-                detected_img = self.img_raw[int(det[1]):int(det[3]), int(det[0]):int(det[2])]
-                detected_img = cv2.resize(detected_img, (112, 112))
-                detected_imgs.append(detected_img)
+            return self._processWithNoAlign(dets)
 
-        else:
-            for landmark, det in zip(landms, dets):
-                detected_img = self.align_face(self.img_raw, landmark, det, align_type)
-                detected_imgs.append(detected_img)
-
-        return detected_imgs
+        return self._processWithAlign(landms, dets, align_type)
 
     def __call__(self, image, align_type):
         assert align_type in ['align', 'no_align', 'warp_crop'], "align_type must in ['align', 'no_align', 'warp_crop']"
@@ -138,6 +142,18 @@ class FaceTest(object):
         self.imgs = []
         self.paths = []
 
+    def _detectPics(self, path, pics, align_type):
+        for pic in pics:
+            pic_path = os.path.join(path, pic)
+            print(pic_path)
+            img_raw = cv2.imread(pic_path)
+            if img_raw is None or img_raw.shape is None:
+                print('img:[' + pic_path + "] is readed error! You should get rid of it!")
+                continue
+            self.imgs.extend(self.face_det(img_raw, align_type))
+            self.names.append(pic_path.split('/')[-2])
+            self.paths.append(pic_path)
+
     def faceDet(self, det_dir, align_type):
         persons = os.listdir(det_dir)
 
@@ -147,17 +163,7 @@ class FaceTest(object):
         for person in persons:
             det_person_path = os.path.join(det_dir, person)
             pics = os.listdir(det_person_path)
-            for pic in pics:
-                pic_path = os.path.join(det_person_path, pic)
-                print(pic_path)
-                img_raw = cv2.imread(pic_path)
-
-                if img_raw is None or img_raw.shape is None:
-                    print('img:[' + pic_path + "] is readed error! You should get rid of it!")
-                    continue
-                self.imgs.extend(self.face_det(img_raw, align_type))
-                self.names.append(pic_path.split('/')[-2])
-                self.paths.append(pic_path)
+            self._detectPics(det_person_path, pics, align_type)
 
     def faceRec(self, prefix):
         report = FaceReport(prefix, len(self.imgs))
