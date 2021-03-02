@@ -79,12 +79,6 @@ if __name__ == "__main__":
     from config import config as deepvac_config
     from deepvac.syszux_report import FaceReport
 
-    # deepvac_config.model_path = "./output/lite.pth"
-    deepvac_config.jit_model_path = "./lite.pt"
-    deepvac_config.ori_db_path = "/gemfield/hostpv2/liubaojia/val_dataset/total_base/db"
-    deepvac_config.test_img_path = ["/gemfield/hostpv2/liubaojia/val_dataset/self/ds", "/gemfield/hostpv2/liubaojia/val_dataset/ipc/ds"]
-    deepvac_config.threshold = 0.3
-
     models = {
         "Mobile":  MobileFaceTest,
         "Resnet":  ResnetFaceTest

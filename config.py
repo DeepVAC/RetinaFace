@@ -7,7 +7,7 @@ from torchvision import transforms as trans
 config.disable_git = True
 
 # model
-config.model_path = ""
+config.model_path = "<trained-model-path>"
 config.cls_num = 2
 config.network = 'resnet50' #'resnet50' or 'mobilenet'
 config.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,13 +35,13 @@ config.trace_model_dir = "./output/trace.pt"
 
 # train
 config.train.shuffle = True
-config.train.batch_size = 12 if config.network=='mobilenet' else 4
-config.train.fileline_data_path_prefix = "/gemfield/hostpv/deepvac-face-det/widerface"
-config.train.fileline_path = "/gemfield/hostpv/deepvac-face-det/widerface/label_train5k.txt"
+config.train.batch_size = 12 if config.network=='mobilenet' else 6
+config.train.fileline_data_path_prefix = "<train-image-dir>"
+config.train.fileline_path = "<train-list-path>"
 config.train.image_size = (640, 640) if config.network=='mobilenet' else (840, 840)
 
 # val
-config.val.input_dir = "/opt/private/deepvac_face_1.0_test/ipc7/db"
+config.val.input_dir = "<val-image-dir>"
 
 # DDP
 # config.dist_url = 'tcp://localhost:27030'
@@ -56,7 +56,6 @@ config.aug.rgb_means = (104, 117, 123)
 config.test.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 config.test.disable_git = True
 config.test.input_dir = "<test-image-dir>"
-config.test.model_path = ""
 config.test.confidence_threshold = 0.02
 config.test.nms_threshold = 0.4
 config.test.top_k = 5000
@@ -81,4 +80,4 @@ config.face.transform = trans.Compose([
     trans.ToTensor(),
     trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
-config.face.jit_model_path = ""
+config.face.jit_model_path = "<face-trained-model-path>"

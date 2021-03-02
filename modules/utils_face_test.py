@@ -207,11 +207,5 @@ class FaceTest(object):
 
 if __name__ == "__main__":
     from config import config as deepvac_config
-
-    deepvac_config.test.test_dirs = ['/opt/private/deepvac_face_1.0_test/ipc7/ds']
-    deepvac_config.test.test_prefix = ['ipc']
-    
-    deepvac_config.test.db_dirs = ['/opt/private/deepvac_face_1.0_test/ipc7/db']
-
     face_test = FaceTest(deepvac_config)
     face_test()
