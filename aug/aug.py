@@ -1,13 +1,13 @@
 import random
 import numpy as np
-from deepvac import RetinaAugExecutor
+from deepvac.aug import RetinaAugComposer
 class RetinaAug(object):
 
-    def __init__(self, deepvac_config):
-        self.conf = deepvac_config.aug
-        assert self.conf.img_dim, "please set config.aug.img_dim in config"
-        assert self.conf.rgb_means, "please set config.aug.rgb_means in config"
-        self.aug = RetinaAugExecutor(self.conf)
+    def __init__(self, deepvac_aug_config):
+        self.config = deepvac_aug_config
+        assert self.config.facial_img_dim, "please set config.aug.facial_img_dim in config"
+        assert self.config.rgb_means, "please set config.aug.rgb_means in config"
+        self.aug = RetinaAugComposer(self.config)
 
     def auditConfig(self):
         pass

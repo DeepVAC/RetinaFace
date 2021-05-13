@@ -11,11 +11,10 @@ import numpy as np
 import os
 
 from deepvac import LOG, Deepvac, FaceReport
-from deepvac.syszux_post_process import py_cpu_nms, decode, decode_landm, PriorBox
+from deepvac.utils.face_utils import py_cpu_nms, decode, decode_landm, PriorBox
 
-from modules.model_retina import RetinaFaceMobileNet, RetinaFaceResNet
 from modules.utils_align import AlignFace
-from modules.utils_face_rec import MobileFaceTest
+from modules.utils_face_rec import FaceRecTest
 import sys
 
 class RetinaTest(Deepvac):
@@ -33,10 +32,6 @@ class RetinaTest(Deepvac):
     def auditConfig(self):
         pass
 
-    def initNetWithCode(self):
-        #torch.set_grad_enabled(False)
-        self.net = RetinaFaceMobileNet()
-
     def _pre_process(self, img_raw):
         h, w, c = img_raw.shape
         max_edge = max(h,w)
@@ -49,7 +44,7 @@ class RetinaTest(Deepvac):
         img -= (104, 117, 123)
         img = img.transpose(2, 0, 1)
         self.input_tensor = torch.from_numpy(img).unsqueeze(0)
-        self.input_tensor = self.input_tensor.to(self.device)
+        self.input_tensor = self.input_tensor.to(self.config.device)
         self.img_raw = img_raw
 
     def _processWithNoAlign(self, dets):
@@ -74,11 +69,11 @@ class RetinaTest(Deepvac):
         
         priorbox = PriorBox(self.priorbox_cfgs, image_size=(self.img_raw.shape[0], self.img_raw.shape[1]))
         priors = priorbox.forward()
-        priors = priors.to(self.device)
+        priors = priors.to(self.config.device)
         prior_data = priors.data
         resize = 1
         scale = torch.Tensor([self.input_tensor.shape[3], self.input_tensor.shape[2], self.input_tensor.shape[3], self.input_tensor.shape[2]])
-        scale = scale.to(self.device)
+        scale = scale.to(self.config.device)
         boxes = decode(loc.data.squeeze(0), prior_data, self.variance)
         boxes = boxes * scale / resize
         boxes = boxes.cpu().numpy()
@@ -87,18 +82,18 @@ class RetinaTest(Deepvac):
         scale1 = torch.Tensor([self.input_tensor.shape[3], self.input_tensor.shape[2], self.input_tensor.shape[3], self.input_tensor.shape[2],
                         self.input_tensor.shape[3], self.input_tensor.shape[2], self.input_tensor.shape[3], self.input_tensor.shape[2],
                         self.input_tensor.shape[3], self.input_tensor.shape[2]])
-        scale1 = scale1.to(self.device)
+        scale1 = scale1.to(self.config.device)
         landms = landms * scale1 / resize
         landms = landms.cpu().numpy()
 
         # ignore low scores
-        inds = np.where(scores > self.conf.confidence_threshold)[0]
+        inds = np.where(scores > self.config.confidence_threshold)[0]
         boxes = boxes[inds]
         landms = landms[inds]
         scores = scores[inds]
         
         # keep top-K before NMS
-        order = scores.argsort()[::-1][:self.conf.top_k]
+        order = scores.argsort()[::-1][:self.config.top_k]
         # order = scores.argsort()[::-1][:args.top_k]
         boxes = boxes[order]
         landms = landms[order]
@@ -106,13 +101,13 @@ class RetinaTest(Deepvac):
         
         # do NMS
         dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = py_cpu_nms(dets, self.conf.nms_threshold)
+        keep = py_cpu_nms(dets, self.config.nms_threshold)
         dets = dets[keep, :]
         landms = landms[keep]
 
         # keep top-K faster NMS
-        dets = dets[:self.conf.keep_top_k, :]
-        landms = landms[:self.conf.keep_top_k, :]
+        dets = dets[:self.config.keep_top_k, :]
+        landms = landms[:self.config.keep_top_k, :]
         if len(dets)==0:
             return []
         if align_type == 'no_align':
@@ -120,12 +115,14 @@ class RetinaTest(Deepvac):
 
         return self._processWithAlign(landms, dets, align_type)
 
-    def __call__(self, image, align_type):
+    def __call__(self, image, align_type, det_net=None):
         assert align_type in ['align', 'no_align', 'warp_crop'], "align_type must in ['align', 'no_align', 'warp_crop']"
         self._pre_process(image)
+        if det_net is not None:
+            self.config.net = det_net
 
         tic = time.time()
-        preds = self.net(self.input_tensor)
+        preds = self.config.net(self.input_tensor)
         end = time.time() - tic
         print('net forward time: {:.4f}'.format(time.time() - tic))
 
@@ -133,16 +130,16 @@ class RetinaTest(Deepvac):
 
 class FaceTest(object):
     def __init__(self, deepvac_config):
-        self.conf = deepvac_config
-        self.face_rec = MobileFaceTest(deepvac_config.face)
-        self.face_det = RetinaTest(deepvac_config.test)
+        self.config = deepvac_config
+        self.face_rec = FaceRecTest(deepvac_config.face)
+        self.face_det = RetinaTest(deepvac_config)
         
         self.reports = []
         self.names = []
         self.imgs = []
         self.paths = []
 
-    def _detectPics(self, path, pics, align_type):
+    def _detectPics(self, path, pics, align_type, det_net=None):
         for pic in pics:
             pic_path = os.path.join(path, pic)
             print(pic_path)
@@ -150,11 +147,14 @@ class FaceTest(object):
             if img_raw is None or img_raw.shape is None:
                 print('img:[' + pic_path + "] is readed error! You should get rid of it!")
                 continue
-            self.imgs.extend(self.face_det(img_raw, align_type))
+            det_res = self.face_det(img_raw, align_type, det_net)
+            if len(det_res) == 0:
+                continue
+            self.imgs.extend(det_res)
             self.names.append(pic_path.split('/')[-2])
             self.paths.append(pic_path)
 
-    def faceDet(self, det_dir, align_type):
+    def faceDet(self, det_dir, align_type, det_net=None):
         persons = os.listdir(det_dir)
 
         self.names = []
@@ -162,8 +162,10 @@ class FaceTest(object):
         self.paths = []
         for person in persons:
             det_person_path = os.path.join(det_dir, person)
+            if not os.path.isdir(det_person_path):
+                continue
             pics = os.listdir(det_person_path)
-            self._detectPics(det_person_path, pics, align_type)
+            self._detectPics(det_person_path, pics, align_type, det_net)
 
     def faceRec(self, prefix):
         report = FaceReport(prefix, len(self.imgs))
@@ -171,23 +173,20 @@ class FaceTest(object):
             print(self.paths[idx])
             infos = self.paths[idx].split('/')
             person, img_name = infos[-2], infos[-1]
-            output = self.face_rec(img)
-            if len(output) == 0:
-                pred = None
-            else:
-                pred = output[0]
+            self.face_rec.setInputImg(img)
+            pred, _ = self.face_rec()
             label = self.names[idx]
             print('label:', label)
             print('pred:', pred)
             report.add(label, pred)
         self.reports.append(report)
 
-    def makeDB(self, align_type):
+    def makeDB(self, align_type, det_net=None):
         imgs = []
         names = []
         paths = []
-        for i in range(len(self.conf.test.db_dirs)):
-            self.faceDet(self.conf.test.db_dirs[i], align_type)
+        for i in range(len(self.config.db_dirs)):
+            self.faceDet(self.config.db_dirs[i], align_type, det_net)
             imgs.extend(self.imgs)
             names.extend(self.names)
             paths.extend(self.paths)
@@ -197,16 +196,16 @@ class FaceTest(object):
         for report in self.reports:
             report()
 
-    def __call__(self):
-        assert len(self.conf.test.test_dirs) == len(self.conf.test.test_prefix), "test_dirs and test_prefix must have same len."
-        for align_type in self.conf.test.align_type:
+    def __call__(self, det_net=None):
+        assert len(self.config.test_dirs) == len(self.config.test_prefix), "test_dirs and test_prefix must have same len."
+        for align_type in self.config.align_type:
             print('make DB begin.')
             self.makeDB(align_type)
             print('make DB finish..')
             self.reports = []
-            for i in range(len(self.conf.test.test_dirs)):
-                self.faceDet(self.conf.test.test_dirs[i], align_type)
-                self.faceRec(self.conf.test.test_prefix[i])
+            for i in range(len(self.config.test_dirs)):
+                self.faceDet(self.config.test_dirs[i], align_type, det_net)
+                self.faceRec(self.config.test_prefix[i])
             self.printReports()
 
 
