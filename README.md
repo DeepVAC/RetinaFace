@@ -48,18 +48,25 @@ config.train.input_dir = <test-image-dir>
 - 指定Backbone网络结构, 支持ResNet50, MobileNetV3, RegNet, RepVGG(config.train.net)
 - 指定loss函数(config.train.criterion)
 - 指定训练分类数量(config.train.class_num)    
-- 指定学习率策略相关参数(config.train.momentum, config.train.weight_decay, config.train.lr, config.train.gamma)
+- 指定优化器optimizer(config.train.optimizer)
+- 指定学习率策略scheduler(config.train.scheduler)
 - dataloader相关配置(config.train.collate_fn, config.train.train_dataset, config.train.train_loader, config.train.val_dataset, config.train.val_loader, config.train.test_dataset, config.train.test_loader)     
 
 ```python
-config.model_path = ''
-config.class_num = 2
-config.momentum = 0.9
-config.weight_decay = 5e-4
-config.lr = 1e-3
-config.gamma = 0.1
+config.train.model_path = ''
+config.train.class_num = 2
 config.train.shuffle = True
 config.train.batch_size = 24
+config.train.net = RetinaFaceMobileNet()
+config.train.criterion = MultiBoxLoss(config.train.cls_num, 0.35, True, 0, True, 7, 0.35, False, config.train.device)
+config.train.optimizer = torch.optim.SGD(
+        config.train.net.parameters(),
+        lr=1e-3,
+        momentum=0.9,
+        weight_decay=5e-4,
+        nesterov=False
+    )
+config.train.scheduler = torch.optim.lr_scheduler.MultiStepLR(config.train.optimizer, [50, 70, 90], 0.1) # resnet
 
 config.train.input_dir = "<test-image-dir>"
 config.train.collate_fn = detection_collate
@@ -77,6 +84,8 @@ config.train.val_loader = torch.utils.data.DataLoader(config.train.val_dataset, 
 
 config.train.test_dataset = RetinaTestDataset(config.train)
 config.train.test_loader = torch.utils.data.DataLoader(config.train.test_dataset, batch_size=1, pin_memory=False)
+
+
 
 ```
 ## 5. 训练
