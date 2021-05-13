@@ -49,10 +49,6 @@ class RetinaFaceMobileNetBackbone(MobileNetV3Large):
             x = fea(x)
             if i in self.return_layers:
                 out.append(x)
-        #x = self.conv(x)
-        #x = self.pool(x)
-        #x = x.view(x.size(0), -1)
-        #x = self.classifier(x)
         return out
 
 
@@ -149,8 +145,6 @@ class RetinaFaceRegNetBackbone(RegNetSmall):
             x = cur(x)
             if i in self.return_layers:
                 out.append(x)
-
-        #x = self.head(x)
         return out
 
 class RetinaFaceRegNet(RetinaFaceMobileNet):
@@ -174,9 +168,6 @@ class RetinaFaceRepVGGBackbone(RepVGGASmall):
             x = cur(x)
             if i in self.return_layers:
                 out.append(x)
-        #out = self.avgpool(out)
-        #out = out.view(out.size(0), -1)
-        #out = self.linear(out)
         return out
 
 class RetinaFaceRepVGG(RetinaFaceMobileNet):
@@ -184,7 +175,6 @@ class RetinaFaceRepVGG(RetinaFaceMobileNet):
         self.class_num = class_num
         self.deploy = deploy
         super(RetinaFaceRepVGG, self).__init__()
-        #self.device = device
     def auditConfig(self):
         self.in_channels_list = [96, 192, 1280]
         self.out_channels = 64
