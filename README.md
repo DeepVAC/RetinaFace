@@ -120,13 +120,12 @@ python train.py --rank 1 --gpu 1
 - 测试相关配置
 
 ```python
-config.train.input_dir = <test-image-dir>
-config.train.confidence_threshold = 0.02
-config.train.nms_threshold = 0.4
-config.train.top_k = 5000
-config.train.keep_top_k = 1
-config.train.max_edge = 2000
-config.train.rgb_means = (104, 117, 123)
+config.train.post_process.confidence_threshold = 0.02
+config.train.post_process.nms_threshold = 0.4
+config.train.post_process.top_k = 5000
+config.train.post_process.keep_top_k = 1
+config.train.post_process.max_edge = 2000
+config.train.post_process.rgb_means = (104, 117, 123)
 ```
 
 - 加载模型(*.pth)

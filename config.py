@@ -86,7 +86,7 @@ config.train.test_loader = torch.utils.data.DataLoader(config.train.test_dataset
 # config.dist_url = 'tcp://localhost:27030'
 # config.world_size = 2
 
-## ------------------ test --------------------
+## ------------------ for post_process --------------------
 config.train.post_process = AttrDict()
 config.train.post_process.confidence_threshold = 0.02
 config.train.post_process.nms_threshold = 0.4
@@ -101,7 +101,7 @@ config.train.post_process.test_prefix = []
 config.train.post_process.db_dirs = []
 config.train.post_process.db_prefix = []
 
-## ------------------ face --------------------
+## ------------------ for processAccept --------------------
 config.train.accept = AttrDict()
 config.train.accept.disable_git = True
 config.train.accept.device = 'cuda'
