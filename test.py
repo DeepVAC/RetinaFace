@@ -85,19 +85,6 @@ class RetinaTest(Deepvac):
     def doFeedData2Device(self):
         self.config.sample = self.config.sample.to(self.config.device)
 
-    def process_temp(self):
-        for input_tensor, path in self.config.test_loader:
-            self.config.sample = input_tensor.to(self.config.device)
-            self.img_raw = cv2.imread(path[0])
-            #self.img_raw = input_tensor.cpu().numpy().squeeze(0).transpose((1, 2, 0))
-            preds = self.config.net(self.config.sample.to(self.config.device))
-
-            dets, landms = self._post_process(preds)
-            name = path[0].split('/')[-1]
-            print('path: ', path)
-            print('dets: ', dets)
-            print('landms: ', landms)
-
 if __name__ == "__main__":
     from config import config
    
