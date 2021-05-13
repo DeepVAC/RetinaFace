@@ -4,8 +4,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 import time
-#import sys
-#sys.path.append('/gemfield/hostpv/github/deepvac')
+
 import deepvac
 from deepvac import LOG, Deepvac
 from deepvac.utils.face_utils import py_cpu_nms, decode, decode_landm, PriorBox
