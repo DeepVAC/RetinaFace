@@ -131,8 +131,8 @@ class RetinaTest(Deepvac):
 class FaceTest(object):
     def __init__(self, deepvac_config):
         self.config = deepvac_config
-        self.face_rec = FaceRecTest(deepvac_config.face)
-        self.face_det = RetinaTest(deepvac_config)
+        self.face_rec = FaceRecTest(deepvac_config.accept)
+        self.face_det = RetinaTest(deepvac_config.post_process)
         
         self.reports = []
         self.names = []

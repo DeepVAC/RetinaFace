@@ -108,11 +108,11 @@ class RetinaValDataset(OsWalkDataset):
         img_raw = cv2.imread(path, 1)
         h, w, c = img_raw.shape
         max_edge = max(h,w)
-        if(max_edge > self.config.max_edge):
-            img_raw = cv2.resize(img_raw,(int(w * self.config.max_edge / max_edge), int(h * self.config.max_edge / max_edge)))
+        if(max_edge > self.config.post_process.max_edge):
+            img_raw = cv2.resize(img_raw,(int(w * self.config.post_process.max_edge / max_edge), int(h * self.config.post_process.max_edge / max_edge)))
         img = np.float32(img_raw)
         im_height, im_width, _ = img.shape
-        img -= self.config.rgb_means
+        img -= self.config.post_process.rgb_means
         img = img.transpose(2, 0, 1)
         input_tensor = torch.from_numpy(img)
         return input_tensor, torch.ones(1)
@@ -128,13 +128,13 @@ class RetinaTestDataset(OsWalkDataset):
         h, w, c = img_raw.shape
         max_edge = max(h,w)
 
-        if(max_edge > self.conf.max_edge):
+        if(max_edge > self.conf.post_process.max_edge):
 
-            img_raw = cv2.resize(img_raw,(int(w * self.conf.max_edge / max_edge), int(h * self.conf.max_edge / max_edge)))
+            img_raw = cv2.resize(img_raw,(int(w * self.conf.post_process.max_edge / max_edge), int(h * self.conf.post_process.max_edge / max_edge)))
 
         img = np.float32(img_raw)
         im_height, im_width, _ = img.shape
-        img -= self.conf.rgb_means
+        img -= self.conf.post_process.rgb_means
         img = img.transpose(2, 0, 1)
         input_tensor = torch.from_numpy(img)
 

@@ -87,29 +87,30 @@ config.train.test_loader = torch.utils.data.DataLoader(config.train.test_dataset
 # config.world_size = 2
 
 ## ------------------ test --------------------
-config.train.confidence_threshold = 0.02
-config.train.nms_threshold = 0.4
-config.train.top_k = 5000
-config.train.keep_top_k = 1
-config.train.max_edge = 2000
-config.train.rgb_means = (104, 117, 123)
+config.train.post_process = AttrDict()
+config.train.post_process.confidence_threshold = 0.02
+config.train.post_process.nms_threshold = 0.4
+config.train.post_process.top_k = 5000
+config.train.post_process.keep_top_k = 1
+config.train.post_process.max_edge = 2000
+config.train.post_process.rgb_means = (104, 117, 123)
 
-config.train.align_type = ['align', 'no_align', 'warp_crop']
-config.train.test_dirs = []
-config.train.test_prefix = []
-config.train.db_dirs = []
-config.train.db_prefix = []
+config.train.post_process.align_type = ['align', 'no_align', 'warp_crop']
+config.train.post_process.test_dirs = []
+config.train.post_process.test_prefix = []
+config.train.post_process.db_dirs = []
+config.train.post_process.db_prefix = []
 
 ## ------------------ face --------------------
-config.train.face = AttrDict()
-config.train.face.disable_git = True
-config.train.face.device = 'cuda'
-config.train.face.test_loader = ''
-config.train.face.embedding_size = 512
-config.train.face.net = MobileFaceNet(config.train.face.embedding_size)
-config.train.face.threshold = 0.3
-config.train.face.transform = trans.Compose([
+config.train.accept = AttrDict()
+config.train.accept.disable_git = True
+config.train.accept.device = 'cuda'
+config.train.accept.test_loader = ''
+config.train.accept.embedding_size = 512
+config.train.accept.net = MobileFaceNet(config.train.accept.embedding_size)
+config.train.accept.threshold = 0.3
+config.train.accept.transform = trans.Compose([
     trans.ToTensor(),
     trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
-config.train.face.jit_model_path = "<face-trained-model-path>"
+config.train.accept.jit_model_path = "<face-trained-model-path>"
