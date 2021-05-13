@@ -37,29 +37,55 @@ DeepVAC-compliant RetinaFace implementation
 ```python
 config.train.fileline_data_path_prefix = <train-image-dir>
 config.train.fileline_path = <train-list-path>
-config.test.input_dir = <test-image-dir>
+config.train.input_dir = <test-image-dir>
 ```
-- 测试集可自己设定，设置config.test.input_dir参数即可。   
+- 验证/测试集可自己设定，设置config.train.input_dir参数即可。   
 
 - 如果是自己的数据集，那么必须要跟widerface的标注格式一致
 
 ## 4. 训练相关配置
-- 指定预训练模型路径(config.model_path)      
-- 指定网络结构，支持ResNet50和MobileNetV3(config.model_path)
-- 指定训练分类数量(config.class_num)    
-- 指定学习率策略相关参数(config.momentum, config.weight_decay, config.lr, config.gamma)
-- dataloader相关配置(config.train)     
+- 指定预训练模型路径(config.train.model_path)      
+- 指定Backbone网络结构, 支持ResNet50, MobileNetV3, RegNet, RepVGG(config.train.net)
+- 指定loss函数(config.train.criterion)
+- 指定训练分类数量(config.train.class_num)    
+- 指定优化器optimizer(config.train.optimizer)
+- 指定学习率策略scheduler(config.train.scheduler)
+- dataloader相关配置(config.train.collate_fn, config.train.train_dataset, config.train.train_loader, config.train.val_dataset, config.train.val_loader, config.train.test_dataset, config.train.test_loader)     
 
 ```python
-config.model_path = ''
-config.network = 'mobilenet' or 'resnet50'
-config.class_num = 2
-config.momentum = 0.9
-config.weight_decay = 5e-4
-config.lr = 1e-3
-config.gamma = 0.1
+config.train.model_path = ''
+config.train.class_num = 2
 config.train.shuffle = True
-config.train.batch_size = 12 if config.network=='mobilenet' else 6
+config.train.batch_size = 24
+config.train.net = RetinaFaceMobileNet()
+config.train.criterion = MultiBoxLoss(config.train.cls_num, 0.35, True, 0, True, 7, 0.35, False, config.train.device)
+config.train.optimizer = torch.optim.SGD(
+        config.train.net.parameters(),
+        lr=1e-3,
+        momentum=0.9,
+        weight_decay=5e-4,
+        nesterov=False
+    )
+config.train.scheduler = torch.optim.lr_scheduler.MultiStepLR(config.train.optimizer, [50, 70, 90], 0.1) # resnet
+
+config.train.input_dir = "<test-image-dir>"
+config.train.collate_fn = detection_collate
+config.train.train_dataset = RetinaTrainDataset(config.train, augument=RetinaAug(config.aug))
+config.train.train_loader = torch.utils.data.DataLoader(
+    config.train.train_dataset,
+    batch_size=config.train.batch_size,
+    num_workers=config.train.num_workers,
+    shuffle= False if is_ddp else config.train.shuffle,
+    collate_fn=config.train.collate_fn
+)
+
+config.train.val_dataset = RetinaValDataset(config.train)
+config.train.val_loader = torch.utils.data.DataLoader(config.train.val_dataset, batch_size=1, pin_memory=False)
+
+config.train.test_dataset = RetinaTestDataset(config.train)
+config.train.test_loader = torch.utils.data.DataLoader(config.train.test_dataset, batch_size=1, pin_memory=False)
+
+
 
 ```
 ## 5. 训练
@@ -76,10 +102,10 @@ python3 train.py
 在config.py中修改如下配置：
 ```python
 #dist_url，单机多卡无需改动，多机训练一定要修改
-config.dist_url = "tcp://localhost:27030"
+config.train.dist_url = "tcp://localhost:27030"
 
 #rank的数量，一定要修改
-config.world_size = 2
+config.train.world_size = 2
 ```
 然后执行命令：
 
@@ -94,19 +120,18 @@ python train.py --rank 1 --gpu 1
 - 测试相关配置
 
 ```python
-config.test.input_dir = <test-image-dir>
-config.test.confidence_threshold = 0.02
-config.test.nms_threshold = 0.4
-config.test.top_k = 5000
-config.test.keep_top_k = 1
-config.test.max_edge = 2000
-config.test.rgb_means = (104, 117, 123)
+config.train.post_process.confidence_threshold = 0.02
+config.train.post_process.nms_threshold = 0.4
+config.train.post_process.top_k = 5000
+config.train.post_process.keep_top_k = 1
+config.train.post_process.max_edge = 2000
+config.train.post_process.rgb_means = (104, 117, 123)
 ```
 
 - 加载模型(*.pth)
 
 ```python
-config.model_path = <trained-model-path>
+config.train.model_path = <trained-model-path>
 ```
 
 - 运行测试脚本：
@@ -115,12 +140,12 @@ config.model_path = <trained-model-path>
 python3 test.py
 ```
 ## 7. 使用trace模型
-如果训练过程中未开启config.trace_model_dir开关，可以在测试过程中转化torchscript模型     
+如果训练过程中开启config.train.trace_model_dir开关，可以在测试过程中转化torchscript模型     
 
 - 转换torchscript模型(*.pt)     
 
 ```python
-config.trace_model_dir = "output/trace.pt"
+config.train.trace_model_dir = "output/trace.pt"
 ```
 
 按照步骤6完成测试，torchscript模型将保存至config.torchscript_model_dir指定文件位置      
@@ -145,7 +170,7 @@ config.static_quantize_dir = "output/trace.sq"
 ```python
 config.jit_model_path = <static-quantize-model-path>
 ```
-
+- 动态量化模型对应的配置参数为config.dynamic_quantize_dir     
 
 ## 9. 更多功能
 如果要在本项目中开启如下功能：

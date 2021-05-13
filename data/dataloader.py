@@ -6,6 +6,8 @@ import torch.utils.data as data
 import cv2
 import numpy as np
 
+from deepvac.datasets import OsWalkDataset
+
 class RetinaTrainDataset(data.Dataset):
     def __init__(self, deepvac_config, augument=None):
         self.conf = deepvac_config
@@ -95,3 +97,45 @@ def detection_collate(batch):
                 annos = torch.from_numpy(tup).float()
                 targets.append(annos)
     return (torch.stack(imgs, 0), targets)
+
+class RetinaValDataset(OsWalkDataset):
+    def __init__(self, deepvac_config):
+        self.config = deepvac_config
+        super(RetinaValDataset, self).__init__(deepvac_config)
+
+    def __getitem__(self, index):
+        path = self.files[index]
+        img_raw = cv2.imread(path, 1)
+        h, w, c = img_raw.shape
+        max_edge = max(h,w)
+        if(max_edge > self.config.post_process.max_edge):
+            img_raw = cv2.resize(img_raw,(int(w * self.config.post_process.max_edge / max_edge), int(h * self.config.post_process.max_edge / max_edge)))
+        img = np.float32(img_raw)
+        im_height, im_width, _ = img.shape
+        img -= self.config.post_process.rgb_means
+        img = img.transpose(2, 0, 1)
+        input_tensor = torch.from_numpy(img)
+        return input_tensor, torch.ones(1)
+
+class RetinaTestDataset(OsWalkDataset):
+    def __init__(self, deepvac_config):
+        self.conf = deepvac_config
+        super(RetinaTestDataset, self).__init__(deepvac_config)
+
+    def __getitem__(self, index):
+        path = self.files[index]
+        img_raw = cv2.imread(path, 1)
+        h, w, c = img_raw.shape
+        max_edge = max(h,w)
+
+        if(max_edge > self.conf.post_process.max_edge):
+
+            img_raw = cv2.resize(img_raw,(int(w * self.conf.post_process.max_edge / max_edge), int(h * self.conf.post_process.max_edge / max_edge)))
+
+        img = np.float32(img_raw)
+        im_height, im_width, _ = img.shape
+        img -= self.conf.post_process.rgb_means
+        img = img.transpose(2, 0, 1)
+        input_tensor = torch.from_numpy(img)
+
+        return input_tensor, path

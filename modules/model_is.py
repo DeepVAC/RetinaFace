@@ -5,7 +5,7 @@ import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 
-from deepvac.syszux_modules import Conv2dBNPReLU, BottleneckIR, DepthWiseConv2d, initWeightsKaiming
+from deepvac.backbones import Conv2dBNPReLU, BottleneckIR, DepthWiseConv2d, initWeightsKaiming
 from torch.nn import Module, init, Parameter
 from typing import Any
 
