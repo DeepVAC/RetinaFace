@@ -8,7 +8,7 @@ from deepvac import config, AttrDict
 from deepvac.loss import MultiBoxLoss
 from modules.model_retina import RetinaFaceMobileNet, RetinaFaceResNet, RetinaFaceRegNet, RetinaFaceRepVGG
 from modules.model_is import MobileFaceNet, Resnet50IR
-from synthesis.synthesis import RetinaTrainDataset, detection_collate, RetinaValDataset, RetinaTestDataset
+from data.dataloader import RetinaTrainDataset, detection_collate, RetinaValDataset, RetinaTestDataset
 from aug.aug import RetinaAug
 
 ## ------------------ common ------------------
