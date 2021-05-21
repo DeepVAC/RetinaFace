@@ -1,9 +1,9 @@
-import torch
-import torch.nn.functional as F
-
+import time
 import cv2
 import numpy as np
-import time
+
+import torch
+import torch.nn.functional as F
 
 import deepvac
 from deepvac import LOG, Deepvac
@@ -12,7 +12,6 @@ from deepvac.utils.face_utils import py_cpu_nms, decode, decode_landm, PriorBox
 class RetinaTest(Deepvac):
     def __init__(self, deepvac_config):
         super(RetinaTest, self).__init__(deepvac_config)
-        self.auditConfig()
         self.priorbox_cfgs = {
             'min_sizes': [[16, 32], [64, 128], [256, 512]],
             'steps': [8, 16, 32],
@@ -88,6 +87,6 @@ class RetinaTest(Deepvac):
 if __name__ == "__main__":
     from config import config
    
-    retina_test = RetinaTest(config.train)
+    retina_test = RetinaTest(config)
     retina_test()
     

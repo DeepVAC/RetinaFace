@@ -1,19 +1,17 @@
 import os
-import os.path
 import sys
+import numpy as np
+import cv2
 import torch
 import torch.utils.data as data
-import cv2
-import numpy as np
+from deepvac.datasets import OsWalkDataset, DatasetBase
 
-from deepvac.datasets import OsWalkDataset
-
-class RetinaTrainDataset(data.Dataset):
-    def __init__(self, deepvac_config, augument=None):
-        self.conf = deepvac_config
-        self.augument = augument
-        
-        with open(self.conf.fileline_path, 'r') as f:
+class RetinaTrainDataset(DatasetBase):
+    def __init__(self, deepvac_config):
+        super(RetinaTrainDataset, self).__init__(deepvac_config)
+        if self.config.composer is None:
+            LOG.logE("Must set config.datasets.RetinaTrainDataset.composer in config.py.", exit=True)
+        with open(self.config.fileline_path, 'r') as f:
             lines = f.readlines()
        
         self.imgs_path = []
@@ -26,7 +24,7 @@ class RetinaTrainDataset(data.Dataset):
         
         for i in range(len(gaps)-1):
             path = lines[gaps[i]][2:]
-            path = os.path.join(self.conf.fileline_data_path_prefix, path)
+            path = os.path.join(self.config.sample_path_prefix, path)
             self.imgs_path.append(path)
             self.words.append(lines[gaps[i]+1:gaps[i+1]])
 
@@ -70,9 +68,17 @@ class RetinaTrainDataset(data.Dataset):
 
             annotations = np.append(annotations, annotation, axis=0)
         target = np.array(annotations)
-        if self.augument is not None:
-            img, target = self.augument(img, target)
-       
+
+        assert target.shape[0] > 0, "this image does not have gt"
+        boxes = target[:, :4]
+        labels = target[:, -1]
+        landms = target[:, 4:-1]
+
+        img, label  = self.config.composer([img, [boxes, landms, labels]])
+        boxes_t, landms_t, labels_t = label
+
+        labels_t = np.expand_dims(labels_t, 1)
+        target = np.hstack((boxes_t, landms_t, labels_t))       
         return torch.from_numpy(img), target
 
 def detection_collate(batch):
@@ -99,43 +105,34 @@ def detection_collate(batch):
     return (torch.stack(imgs, 0), targets)
 
 class RetinaValDataset(OsWalkDataset):
-    def __init__(self, deepvac_config):
-        self.config = deepvac_config
-        super(RetinaValDataset, self).__init__(deepvac_config)
-
     def __getitem__(self, index):
         path = self.files[index]
         img_raw = cv2.imread(path, 1)
         h, w, c = img_raw.shape
         max_edge = max(h,w)
-        if(max_edge > self.config.post_process.max_edge):
-            img_raw = cv2.resize(img_raw,(int(w * self.config.post_process.max_edge / max_edge), int(h * self.config.post_process.max_edge / max_edge)))
+        print('debug: ', self.config)
+        if(max_edge > self.config.max_edge):
+            img_raw = cv2.resize(img_raw,(int(w * self.config.max_edge / max_edge), int(h * self.config.max_edge / max_edge)))
         img = np.float32(img_raw)
         im_height, im_width, _ = img.shape
-        img -= self.config.post_process.rgb_means
+        img -= self.config.rgb_means
         img = img.transpose(2, 0, 1)
         input_tensor = torch.from_numpy(img)
         return input_tensor, torch.ones(1)
 
 class RetinaTestDataset(OsWalkDataset):
-    def __init__(self, deepvac_config):
-        self.conf = deepvac_config
-        super(RetinaTestDataset, self).__init__(deepvac_config)
-
     def __getitem__(self, index):
         path = self.files[index]
         img_raw = cv2.imread(path, 1)
         h, w, c = img_raw.shape
         max_edge = max(h,w)
 
-        if(max_edge > self.conf.post_process.max_edge):
-
-            img_raw = cv2.resize(img_raw,(int(w * self.conf.post_process.max_edge / max_edge), int(h * self.conf.post_process.max_edge / max_edge)))
+        if(max_edge > self.config.max_edge):
+            img_raw = cv2.resize(img_raw,(int(w * self.config.max_edge / max_edge), int(h * self.config.max_edge / max_edge)))
 
         img = np.float32(img_raw)
         im_height, im_width, _ = img.shape
-        img -= self.conf.post_process.rgb_means
+        img -= self.config.rgb_means
         img = img.transpose(2, 0, 1)
         input_tensor = torch.from_numpy(img)
-
         return input_tensor, path

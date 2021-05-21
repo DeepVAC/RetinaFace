@@ -6,7 +6,7 @@ DeepVAC-compliant RetinaFace implementation
 
 ### 项目依赖
 
-- deepvac >= 0.2.6
+- deepvac >= 0.5.7
 - pytorch >= 1.8.0
 - torchvision >= 0.7.0
 - opencv-python
@@ -35,57 +35,39 @@ DeepVAC-compliant RetinaFace implementation
 - 数据集配置
 在config.py文件中作如下配置：     
 ```python
-config.train.fileline_data_path_prefix = <train-image-dir>
-config.train.fileline_path = <train-list-path>
-config.train.input_dir = <test-image-dir>
-```
-- 验证/测试集可自己设定，设置config.train.input_dir参数即可。   
+# line 25
+config.datasets.RetinaTrainDataset.fileline_path = <train-image-dir>
+# line 26
+config.datasets.RetinaTrainDataset.sample_path_prefix = <train-list-path>
+# line 88
+config.core.sample_path = <test/val-image-dir>
+```  
 
 - 如果是自己的数据集，那么必须要跟widerface的标注格式一致
 
 ## 4. 训练相关配置
-- 指定预训练模型路径(config.train.model_path)      
-- 指定Backbone网络结构, 支持ResNet50, MobileNetV3, RegNet, RepVGG(config.train.net)
-- 指定loss函数(config.train.criterion)
-- 指定训练分类数量(config.train.class_num)    
-- 指定优化器optimizer(config.train.optimizer)
-- 指定学习率策略scheduler(config.train.scheduler)
-- dataloader相关配置(config.train.collate_fn, config.train.train_dataset, config.train.train_loader, config.train.val_dataset, config.train.val_loader, config.train.test_dataset, config.train.test_loader)     
+- 指定预训练模型路径(config.core.model_path)      
+- 指定Backbone网络结构, 支持ResNet50, MobileNetV3, RegNet, RepVGG(config.core.net)
+- 指定loss函数(config.core.criterion)
+- 指定训练分类数量(config.core.class_num)    
+- 指定优化器optimizer(config.core.optimizer)
+- 指定学习率策略scheduler(config.core.scheduler)   
 
 ```python
-config.train.model_path = ''
-config.train.class_num = 2
-config.train.shuffle = True
-config.train.batch_size = 24
-config.train.net = RetinaFaceMobileNet()
-config.train.criterion = MultiBoxLoss(config.train.cls_num, 0.35, True, 0, True, 7, 0.35, False, config.train.device)
-config.train.optimizer = torch.optim.SGD(
-        config.train.net.parameters(),
+config.core.model_path = ''
+config.core.class_num = 2
+config.core.shuffle = True
+config.core.batch_size = 24
+config.core.net = RetinaFaceMobileNet()
+config.core.criterion = MultiBoxLoss(config.train.cls_num, 0.35, True, 0, True, 7, 0.35, False, config.train.device)
+config.core.optimizer = torch.optim.SGD(
+        config.core.net.parameters(),
         lr=1e-3,
         momentum=0.9,
         weight_decay=5e-4,
         nesterov=False
     )
-config.train.scheduler = torch.optim.lr_scheduler.MultiStepLR(config.train.optimizer, [50, 70, 90], 0.1) # resnet
-
-config.train.input_dir = "<test-image-dir>"
-config.train.collate_fn = detection_collate
-config.train.train_dataset = RetinaTrainDataset(config.train, augument=RetinaAug(config.aug))
-config.train.train_loader = torch.utils.data.DataLoader(
-    config.train.train_dataset,
-    batch_size=config.train.batch_size,
-    num_workers=config.train.num_workers,
-    shuffle= False if is_ddp else config.train.shuffle,
-    collate_fn=config.train.collate_fn
-)
-
-config.train.val_dataset = RetinaValDataset(config.train)
-config.train.val_loader = torch.utils.data.DataLoader(config.train.val_dataset, batch_size=1, pin_memory=False)
-
-config.train.test_dataset = RetinaTestDataset(config.train)
-config.train.test_loader = torch.utils.data.DataLoader(config.train.test_dataset, batch_size=1, pin_memory=False)
-
-
+config.core.scheduler = optim.lr_scheduler.MultiStepLR(config.core.optimizer, [100, 150, 190, 220], 0.1)
 
 ```
 ## 5. 训练
@@ -102,10 +84,10 @@ python3 train.py
 在config.py中修改如下配置：
 ```python
 #dist_url，单机多卡无需改动，多机训练一定要修改
-config.train.dist_url = "tcp://localhost:27030"
+config.core.dist_url = "tcp://localhost:27030"
 
 #rank的数量，一定要修改
-config.train.world_size = 2
+config.core.world_size = 2
 ```
 然后执行命令：
 
@@ -120,18 +102,30 @@ python train.py --rank 1 --gpu 1
 - 测试相关配置
 
 ```python
-config.train.post_process.confidence_threshold = 0.02
-config.train.post_process.nms_threshold = 0.4
-config.train.post_process.top_k = 5000
-config.train.post_process.keep_top_k = 1
-config.train.post_process.max_edge = 2000
-config.train.post_process.rgb_means = (104, 117, 123)
+
+config.core.post_process = AttrDict()
+config.core.post_process.confidence_threshold = 0.02
+config.core.post_process.nms_threshold = 0.4
+config.core.post_process.top_k = 5000
+config.core.post_process.keep_top_k = 1
+
+# align type
+config.core.post_process.align_type = ['align', 'no_align', 'warp_crop']
+# db/ds path and prefix(name)
+config.core.post_process.test_dirs = ['']
+config.core.post_process.test_prefix = ['']
+config.core.post_process.db_dirs = ['']
+config.core.post_process.db_prefix = ['']
+
+# rec_config is config used in face recognition module.
+rec_config.core.jit_model_path = "<face-recognition-trained-model-path>"
+
 ```
 
 - 加载模型(*.pth)
 
 ```python
-config.train.model_path = <trained-model-path>
+config.core.model_path = <trained-model-path>
 ```
 
 - 运行测试脚本：
@@ -140,37 +134,47 @@ config.train.model_path = <trained-model-path>
 python3 test.py
 ```
 ## 7. 使用trace模型
-如果训练过程中开启config.train.trace_model_dir开关，可以在测试过程中转化torchscript模型     
+如果训练过程中开启config.cast.TraceCast(config.cast.ScriptCast)开关，可以在测试过程中转化torchscript模型     
 
 - 转换torchscript模型(*.pt)     
 
 ```python
-config.train.trace_model_dir = "output/trace.pt"
+# trace
+config.cast.TraceCast = AttrDict()
+config.cast.TraceCast.model_dir = "./trace.pt"
+
+# script
+config.cast.ScriptCast = AttrDict()
+config.cast.ScriptCast.model_dir = "./script.pt"
 ```
 
-按照步骤6完成测试，torchscript模型将保存至config.torchscript_model_dir指定文件位置      
+按照步骤6完成测试，torchscript模型将保存至model_dir指定文件位置      
 
 - 加载torchscript模型
 
 ```python
-config.jit_model_path = <torchscript-model-path>
+config.core.jit_model_path = <torchscript-model-path>
 ```
 
 ## 8. 使用静态量化模型
-如果训练过程中未开启config.static_quantize_dir开关，可以在测试过程中转化静态量化模型     
+如果训练过程中未开启config.cast.TraceCast开关，可以在测试过程中转化静态量化模型     
 - 转换静态模型(*.sq)     
 
 ```python
-config.static_quantize_dir = "output/trace.sq"
+# trace
+config.cast.TraceCast.static_quantize_dir = "./trace.sq"
+
+# script
+config.cast.ScriptCast.static_quantize_dir = "./script.sq"
 ```
 按照步骤6完成测试，静态量化模型将保存至config.static_quantize_dir指定文件位置      
 
 - 加载静态量化模型
 
 ```python
-config.jit_model_path = <static-quantize-model-path>
+config.core.jit_model_path = <static-quantize-model-path>
 ```
-- 动态量化模型对应的配置参数为config.dynamic_quantize_dir     
+- 动态量化模型对应的配置参数为config.cast.TraceCast.dynamic_quantize_dir(config.cast.ScriptCast.dynamic_quantize_dir)
 
 ## 9. 更多功能
 如果要在本项目中开启如下功能：

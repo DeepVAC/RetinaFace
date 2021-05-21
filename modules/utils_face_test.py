@@ -1,21 +1,21 @@
+import math
+import time
+import os
+import sys
+import numpy as np
+import cv2
+
 import torch
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 
-import cv2
-import math
-import time
-import numpy as np
-import os
-
 from deepvac import LOG, Deepvac, FaceReport
 from deepvac.utils.face_utils import py_cpu_nms, decode, decode_landm, PriorBox
 
 from modules.utils_align import AlignFace
 from modules.utils_face_rec import FaceRecTest
-import sys
 
 class RetinaTest(Deepvac):
     def __init__(self, retina_config):
@@ -87,13 +87,13 @@ class RetinaTest(Deepvac):
         landms = landms.cpu().numpy()
 
         # ignore low scores
-        inds = np.where(scores > self.config.confidence_threshold)[0]
+        inds = np.where(scores > self.config.post_process.confidence_threshold)[0]
         boxes = boxes[inds]
         landms = landms[inds]
         scores = scores[inds]
         
         # keep top-K before NMS
-        order = scores.argsort()[::-1][:self.config.top_k]
+        order = scores.argsort()[::-1][:self.config.post_process.top_k]
         # order = scores.argsort()[::-1][:args.top_k]
         boxes = boxes[order]
         landms = landms[order]
@@ -101,13 +101,13 @@ class RetinaTest(Deepvac):
         
         # do NMS
         dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = py_cpu_nms(dets, self.config.nms_threshold)
+        keep = py_cpu_nms(dets, self.config.post_process.nms_threshold)
         dets = dets[keep, :]
         landms = landms[keep]
 
         # keep top-K faster NMS
-        dets = dets[:self.config.keep_top_k, :]
-        landms = landms[:self.config.keep_top_k, :]
+        dets = dets[:self.config.post_process.keep_top_k, :]
+        landms = landms[:self.config.post_process.keep_top_k, :]
         if len(dets)==0:
             return []
         if align_type == 'no_align':
@@ -120,19 +120,15 @@ class RetinaTest(Deepvac):
         self._pre_process(image)
         if det_net is not None:
             self.config.net = det_net
-
-        tic = time.time()
         preds = self.config.net(self.input_tensor)
-        end = time.time() - tic
-        print('net forward time: {:.4f}'.format(time.time() - tic))
 
         return self._post_process(preds, align_type)
 
 class FaceTest(object):
-    def __init__(self, deepvac_config):
+    def __init__(self, deepvac_config, rec_config):
         self.config = deepvac_config
-        self.face_rec = FaceRecTest(deepvac_config.accept)
-        self.face_det = RetinaTest(deepvac_config.post_process)
+        self.face_rec = FaceRecTest(rec_config)
+        self.face_det = RetinaTest(deepvac_config)
         
         self.reports = []
         self.names = []
@@ -142,11 +138,9 @@ class FaceTest(object):
     def _detectPics(self, path, pics, align_type, det_net=None):
         for pic in pics:
             pic_path = os.path.join(path, pic)
-            print(pic_path)
             img_raw = cv2.imread(pic_path)
             if img_raw is None or img_raw.shape is None:
-                print('img:[' + pic_path + "] is readed error! You should get rid of it!")
-                continue
+                LOG.logE('img:{} is readed error! You should get rid of it!'.format(pic_path), exit=True)
             det_res = self.face_det(img_raw, align_type, det_net)
             if len(det_res) == 0:
                 continue
@@ -170,14 +164,14 @@ class FaceTest(object):
     def faceRec(self, prefix):
         report = FaceReport(prefix, len(self.imgs))
         for idx, img in enumerate(self.imgs):
-            print(self.paths[idx])
+            LOG.logI('path: {}'.format(self.paths[idx]))
             infos = self.paths[idx].split('/')
             person, img_name = infos[-2], infos[-1]
             self.face_rec.setInputImg(img)
             pred, _ = self.face_rec()
             label = self.names[idx]
-            print('label:', label)
-            print('pred:', pred)
+            LOG.logI('label: {}'.format(label))
+            LOG.logI('pred: {}'.format(pred))
             report.add(label, pred)
         self.reports.append(report)
 
@@ -185,8 +179,8 @@ class FaceTest(object):
         imgs = []
         names = []
         paths = []
-        for i in range(len(self.config.db_dirs)):
-            self.faceDet(self.config.db_dirs[i], align_type, det_net)
+        for i in range(len(self.config.core.post_process.db_dirs)):
+            self.faceDet(self.config.core.post_process.db_dirs[i], align_type, det_net)
             imgs.extend(self.imgs)
             names.extend(self.names)
             paths.extend(self.paths)
@@ -197,18 +191,16 @@ class FaceTest(object):
             report()
 
     def __call__(self, det_net=None):
-        assert len(self.config.test_dirs) == len(self.config.test_prefix), "test_dirs and test_prefix must have same len."
-        for align_type in self.config.align_type:
-            print('make DB begin.')
+        assert len(self.config.core.post_process.test_dirs) == len(self.config.core.post_process.test_prefix), "test_dirs and test_prefix must have same len."
+        for align_type in self.config.core.post_process.align_type:
+            LOG.logI('make DB begin.')
             self.makeDB(align_type)
-            print('make DB finish..')
+            LOG.logI('make DB finish..')
             self.reports = []
-            for i in range(len(self.config.test_dirs)):
-                self.faceDet(self.config.test_dirs[i], align_type, det_net)
-                self.faceRec(self.config.test_prefix[i])
+            for i in range(len(self.config.core.post_process.test_dirs)):
+                self.faceDet(self.config.core.post_process.test_dirs[i], align_type, det_net)
+                self.faceRec(self.config.core.post_process.test_prefix[i])
             self.printReports()
-
-
 
 if __name__ == "__main__":
     from config import config as deepvac_config

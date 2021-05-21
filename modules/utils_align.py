@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import time
 import numpy as np
 from numpy.linalg import inv, norm, lstsq
 from numpy.linalg import matrix_rank as rank
-import time
+
 import cv2
-#import syszuxav
 import torch
-removeflag = True
-cdir = os.path.dirname(os.path.realpath(__file__))
+
 class AlignFace(object):
     def __init__(self):
         self.REFERENCE_FACIAL_POINTS_96x112 = [

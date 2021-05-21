@@ -1,18 +1,19 @@
+import os
+import math
+import time
+import numpy as np
+import cv2
+
 import torch
 from torch import nn
 from torch import optim
 
-import cv2
-import math
-import time
-import numpy as np
-import os
-
-import deepvac
 from deepvac import LOG, DeepvacTrain
 from deepvac.utils.face_utils import py_cpu_nms, decode, decode_landm, PriorBox
+
 from modules.model_retina import RetinaFaceMobileNet, RetinaFaceResNet
 from modules.utils_face_test import FaceTest
+from config import config, rec_config
 
 class RetinaTrain(DeepvacTrain):
     def __init__(self, deepvac_config):
@@ -41,11 +42,9 @@ class RetinaTrain(DeepvacTrain):
         self.config.sample = self.config.sample.to(self.config.device)
 
     def processAccept(self):
-        #pass
-        face_test = FaceTest(self.config)
-        face_test(self.config.net)
+        face_test = FaceTest(self.deepvac_config, rec_config)
+        face_test()
 
 if __name__ == "__main__":
-    from config import config
-    train = RetinaTrain(config.train)
+    train = RetinaTrain(config)
     train()

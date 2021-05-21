@@ -1,13 +1,15 @@
 import math
+from typing import Any
 
 import torch
 import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn import Module, init, Parameter
 
 from deepvac.backbones import Conv2dBNPReLU, BottleneckIR, DepthWiseConv2d, initWeightsKaiming
-from torch.nn import Module, init, Parameter
-from typing import Any
+
+
 
 
 class Resnet50IR(nn.Module):
@@ -144,9 +146,3 @@ class Resnet50IRDDP(Resnet50IR):
     def extract(self,x):
         x = super(Resnet50IRDDP, self).forward(x)
         return x
-    
-
-if __name__ == "__main__":
-    model = Backbone(50, 0.4, 512)
-    input = torch.ones((10,3,112,112))
-    model(input)
