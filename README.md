@@ -133,8 +133,8 @@ config.core.model_path = <trained-model-path>
 ```bash
 python3 test.py
 ```
-## 7. 使用trace模型
-如果训练过程中开启config.cast.TraceCast(config.cast.ScriptCast)开关，可以在测试过程中转化torchscript模型     
+## 7. 使用trace模型/script模型
+如果训练过程中开启config.cast.TraceCast（或者config.cast.ScriptCast)开关，可以在测试过程中转化torchscript模型     
 
 - 转换torchscript模型(*.pt)     
 
@@ -174,7 +174,7 @@ config.cast.ScriptCast.static_quantize_dir = "./script.sq"
 ```python
 config.core.jit_model_path = <static-quantize-model-path>
 ```
-- 动态量化模型对应的配置参数为config.cast.TraceCast.dynamic_quantize_dir(config.cast.ScriptCast.dynamic_quantize_dir)
+- 动态量化模型对应的配置参数为config.cast.TraceCast.dynamic_quantize_dir(或者config.cast.ScriptCast.dynamic_quantize_dir)
 
 ## 9. 更多功能
 如果要在本项目中开启如下功能：
