@@ -1,9 +1,9 @@
-import cv2
+import time
 import os
 import numpy as np
-import time
-import torch
 from PIL import Image
+import cv2
+import torch
 from torchvision import transforms
 from deepvac import Deepvac, LOG
 
@@ -14,6 +14,7 @@ class FaceRecTest(Deepvac):
         self.transformer = self.config.transform
         self.tensor_list = []
         self.idx_name_map = {}
+        self.config.net.to(self.config.device)
 
 
     def makeDB(self, imgs, names, paths):
