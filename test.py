@@ -86,7 +86,6 @@ class RetinaTest(Deepvac):
 
 if __name__ == "__main__":
     from config import config
-   
+
     retina_test = RetinaTest(config)
     retina_test()
-    

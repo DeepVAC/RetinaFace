@@ -3,7 +3,7 @@ import os
 import sys
 import time
 import numpy as np
-from numpy.linalg import inv, norm, lstsq
+from numpy.linalg import inv, norm
 from numpy.linalg import matrix_rank as rank
 
 import cv2
@@ -105,7 +105,6 @@ class AlignFace(object):
         X_tensor = torch.from_numpy(X.astype('float32'))
         U_tensor = torch.from_numpy(U.astype('float32'))
         if rank(X) >= 2 * K:
-            #r, _, _, _ = lstsq(X, U, rcond=-1)
             r, _ = torch.lstsq(U_tensor, X_tensor)
             r = r[:X_tensor.shape[1]]
             r = r.numpy()

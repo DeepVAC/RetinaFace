@@ -110,7 +110,6 @@ class RetinaValDataset(OsWalkDataset):
         img_raw = cv2.imread(path, 1)
         h, w, c = img_raw.shape
         max_edge = max(h,w)
-        print('debug: ', self.config)
         if(max_edge > self.config.max_edge):
             img_raw = cv2.resize(img_raw,(int(w * self.config.max_edge / max_edge), int(h * self.config.max_edge / max_edge)))
         img = np.float32(img_raw)

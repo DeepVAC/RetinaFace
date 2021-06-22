@@ -13,7 +13,7 @@ from deepvac.utils.face_utils import py_cpu_nms, decode, decode_landm, PriorBox
 
 from modules.model_retina import RetinaFaceMobileNet, RetinaFaceResNet
 from modules.utils_face_test import FaceTest
-from config import config, rec_config
+from config import config as deepvac_config
 
 class RetinaTrain(DeepvacTrain):
     def __init__(self, deepvac_config):
@@ -42,9 +42,9 @@ class RetinaTrain(DeepvacTrain):
         self.config.sample = self.config.sample.to(self.config.device)
 
     def processAccept(self):
-        face_test = FaceTest(self.deepvac_config, rec_config)
+        face_test = FaceTest(self.deepvac_config)
         face_test()
 
 if __name__ == "__main__":
-    train = RetinaTrain(config)
+    train = RetinaTrain(deepvac_config)
     train()

@@ -35,39 +35,39 @@ DeepVAC-compliant RetinaFace implementation
 - 数据集配置
 在config.py文件中作如下配置：     
 ```python
-# line 25
-config.datasets.RetinaTrainDataset.fileline_path = <train-image-dir>
 # line 26
+config.datasets.RetinaTrainDataset.fileline_path = <train-image-dir>
+# line 27
 config.datasets.RetinaTrainDataset.sample_path_prefix = <train-list-path>
-# line 88
-config.core.sample_path = <test/val-image-dir>
+# line 76
+config.sample_path = <test/val-image-dir>
 ```  
 
 - 如果是自己的数据集，那么必须要跟widerface的标注格式一致
 
 ## 4. 训练相关配置
-- 指定预训练模型路径(config.core.model_path)      
-- 指定Backbone网络结构, 支持ResNet50, MobileNetV3, RegNet, RepVGG(config.core.net)
-- 指定loss函数(config.core.criterion)
-- 指定训练分类数量(config.core.class_num)    
-- 指定优化器optimizer(config.core.optimizer)
-- 指定学习率策略scheduler(config.core.scheduler)   
+- 指定预训练模型路径(config.core.RetinaTrain.model_path)      
+- 指定Backbone网络结构, 支持ResNet50, MobileNetV3, RegNet, RepVGG(config.core.RetinaTrain.net)
+- 指定loss函数(config.core.RetinaTrain.criterion)
+- 指定训练分类数量(config.core.RetinaTrain.class_num)    
+- 指定优化器optimizer(config.core.RetinaTrain.optimizer)
+- 指定学习率策略scheduler(config.core.RetinaTrain.scheduler)   
 
 ```python
-config.core.model_path = ''
-config.core.class_num = 2
-config.core.shuffle = True
-config.core.batch_size = 24
-config.core.net = RetinaFaceMobileNet()
-config.core.criterion = MultiBoxLoss(config.train.cls_num, 0.35, True, 0, True, 7, 0.35, False, config.train.device)
-config.core.optimizer = torch.optim.SGD(
-        config.core.net.parameters(),
+config.core.RetinaTrain.model_path = ''
+config.core.RetinaTrain.class_num = 2
+config.core.RetinaTrain.shuffle = True
+config.core.RetinaTrain.batch_size = 24
+config.core.RetinaTrain.net = RetinaFaceMobileNet()
+config.core.RetinaTrain.criterion = MultiBoxLoss(config.train.cls_num, 0.35, True, 0, True, 7, 0.35, False, config.train.device)
+config.core.RetinaTrain.optimizer = torch.optim.SGD(
+        config.core.RetinaTrain.net.parameters(),
         lr=1e-3,
         momentum=0.9,
         weight_decay=5e-4,
         nesterov=False
     )
-config.core.scheduler = optim.lr_scheduler.MultiStepLR(config.core.optimizer, [100, 150, 190, 220], 0.1)
+config.core.RetinaTrain.scheduler = optim.lr_scheduler.MultiStepLR(config.core.RetinaTrain.optimizer, [100, 150, 190, 220], 0.1)
 
 ```
 ## 5. 训练
@@ -84,10 +84,10 @@ python3 train.py
 在config.py中修改如下配置：
 ```python
 #dist_url，单机多卡无需改动，多机训练一定要修改
-config.core.dist_url = "tcp://localhost:27030"
+config.core.RetinaTrain.dist_url = "tcp://localhost:27030"
 
 #rank的数量，一定要修改
-config.core.world_size = 2
+config.core.RetinaTrain.world_size = 2
 ```
 然后执行命令：
 
@@ -102,30 +102,31 @@ python train.py --rank 1 --gpu 1
 - 测试相关配置
 
 ```python
+# config.core.RetinaTest is config used for post_process and retina_test.
+config.core.RetinaTest.model_path = "<pretrained-model-path>"
+config.core.RetinaTest.confidence_threshold = 0.02
+config.core.RetinaTest.nms_threshold = 0.4
+config.core.RetinaTest.top_k = 5000
+config.core.RetinaTest.keep_top_k = 1
 
-config.core.post_process = AttrDict()
-config.core.post_process.confidence_threshold = 0.02
-config.core.post_process.nms_threshold = 0.4
-config.core.post_process.top_k = 5000
-config.core.post_process.keep_top_k = 1
-
+# config.core.FaceTest is config used for face end-to-end test.
 # align type
-config.core.post_process.align_type = ['align', 'no_align', 'warp_crop']
+config.core.FaceTest.align_type = ['align', 'no_align', 'warp_crop']
 # db/ds path and prefix(name)
-config.core.post_process.test_dirs = ['']
-config.core.post_process.test_prefix = ['']
-config.core.post_process.db_dirs = ['']
-config.core.post_process.db_prefix = ['']
+config.core.FaceTest.test_dirs = ['']
+config.core.FaceTest.test_prefix = ['']
+config.core.FaceTest.db_dirs = ['']
+config.core.FaceTest.db_prefix = ['']
 
-# rec_config is config used in face recognition module.
-rec_config.core.jit_model_path = "<face-recognition-trained-model-path>"
+# config.core.FaceRecTest is config used in face recognition module.
+config.core.FaceRecTest.jit_model_path = "<face-recognition-trained-model-path>"
 
 ```
 
 - 加载模型(*.pth)
 
 ```python
-config.core.model_path = <trained-model-path>
+config.core.RetinaTest.model_path = <trained-model-path>
 ```
 
 - 运行测试脚本：
@@ -153,7 +154,7 @@ config.cast.ScriptCast.model_dir = "./script.pt"
 - 加载torchscript模型
 
 ```python
-config.core.jit_model_path = <torchscript-model-path>
+config.core.RetinaTest.jit_model_path = <torchscript-model-path>
 ```
 
 ## 8. 使用静态量化模型
@@ -172,7 +173,7 @@ config.cast.ScriptCast.static_quantize_dir = "./script.sq"
 - 加载静态量化模型
 
 ```python
-config.core.jit_model_path = <static-quantize-model-path>
+config.core.RetinaTest.jit_model_path = <static-quantize-model-path>
 ```
 - 动态量化模型对应的配置参数为config.cast.TraceCast.dynamic_quantize_dir(或者config.cast.ScriptCast.dynamic_quantize_dir)
 

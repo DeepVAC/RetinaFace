@@ -16,7 +16,6 @@ class FaceRecTest(Deepvac):
         self.idx_name_map = {}
         self.config.net.to(self.config.device)
 
-
     def makeDB(self, imgs, names, paths):
         db_emb = torch.Tensor().to(self.config.device)
         LOG.log(LOG.S.I, "start make db")
@@ -46,7 +45,8 @@ class FaceRecTest(Deepvac):
         max_index = torch.argmax(theta).item()
         return theta[max_index], max_index
 
-    def testFly(self):
+    def doTest(self):
+        self.config.sample = torch.rand((1, 3, 112, 112))
         emb = self._inference(self.input_img).to(self.config.device)
         max_distance, max_index = self._compare_cos(emb)
         name = self.db_names[max_index] if  max_distance > self.config.threshold else None

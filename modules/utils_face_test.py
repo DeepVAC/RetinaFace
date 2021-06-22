@@ -87,13 +87,13 @@ class RetinaTest(Deepvac):
         landms = landms.cpu().numpy()
 
         # ignore low scores
-        inds = np.where(scores > self.config.post_process.confidence_threshold)[0]
+        inds = np.where(scores > self.config.confidence_threshold)[0]
         boxes = boxes[inds]
         landms = landms[inds]
         scores = scores[inds]
         
         # keep top-K before NMS
-        order = scores.argsort()[::-1][:self.config.post_process.top_k]
+        order = scores.argsort()[::-1][:self.config.top_k]
         # order = scores.argsort()[::-1][:args.top_k]
         boxes = boxes[order]
         landms = landms[order]
@@ -101,13 +101,13 @@ class RetinaTest(Deepvac):
         
         # do NMS
         dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = py_cpu_nms(dets, self.config.post_process.nms_threshold)
+        keep = py_cpu_nms(dets, self.config.nms_threshold)
         dets = dets[keep, :]
         landms = landms[keep]
 
         # keep top-K faster NMS
-        dets = dets[:self.config.post_process.keep_top_k, :]
-        landms = landms[:self.config.post_process.keep_top_k, :]
+        dets = dets[:self.config.keep_top_k, :]
+        landms = landms[:self.config.keep_top_k, :]
         if len(dets)==0:
             return []
         if align_type == 'no_align':
@@ -115,19 +115,17 @@ class RetinaTest(Deepvac):
 
         return self._processWithAlign(landms, dets, align_type)
 
-    def __call__(self, image, align_type, det_net=None):
+    def __call__(self, image, align_type):
         assert align_type in ['align', 'no_align', 'warp_crop'], "align_type must in ['align', 'no_align', 'warp_crop']"
         self._pre_process(image)
-        if det_net is not None:
-            self.config.net = det_net
         preds = self.config.net(self.input_tensor)
 
         return self._post_process(preds, align_type)
 
-class FaceTest(object):
-    def __init__(self, deepvac_config, rec_config):
-        self.config = deepvac_config
-        self.face_rec = FaceRecTest(rec_config)
+class FaceTest(Deepvac):
+    def __init__(self, deepvac_config):
+        super(FaceTest, self).__init__(deepvac_config)
+        self.face_rec = FaceRecTest(deepvac_config)
         self.face_det = RetinaTest(deepvac_config)
         
         self.reports = []
@@ -135,20 +133,23 @@ class FaceTest(object):
         self.imgs = []
         self.paths = []
 
-    def _detectPics(self, path, pics, align_type, det_net=None):
+    def auditConfig(self):
+        pass
+
+    def _detectPics(self, path, pics, align_type):
         for pic in pics:
             pic_path = os.path.join(path, pic)
             img_raw = cv2.imread(pic_path)
             if img_raw is None or img_raw.shape is None:
                 LOG.logE('img:{} is readed error! You should get rid of it!'.format(pic_path), exit=True)
-            det_res = self.face_det(img_raw, align_type, det_net)
+            det_res = self.face_det(img_raw, align_type)
             if len(det_res) == 0:
                 continue
             self.imgs.extend(det_res)
             self.names.append(pic_path.split('/')[-2])
             self.paths.append(pic_path)
 
-    def faceDet(self, det_dir, align_type, det_net=None):
+    def faceDet(self, det_dir, align_type):
         persons = os.listdir(det_dir)
 
         self.names = []
@@ -159,7 +160,7 @@ class FaceTest(object):
             if not os.path.isdir(det_person_path):
                 continue
             pics = os.listdir(det_person_path)
-            self._detectPics(det_person_path, pics, align_type, det_net)
+            self._detectPics(det_person_path, pics, align_type)
 
     def faceRec(self, prefix):
         report = FaceReport(prefix, len(self.imgs))
@@ -175,12 +176,12 @@ class FaceTest(object):
             report.add(label, pred)
         self.reports.append(report)
 
-    def makeDB(self, align_type, det_net=None):
+    def makeDB(self, align_type):
         imgs = []
         names = []
         paths = []
-        for i in range(len(self.config.core.post_process.db_dirs)):
-            self.faceDet(self.config.core.post_process.db_dirs[i], align_type, det_net)
+        for i in range(len(self.config.db_dirs)):
+            self.faceDet(self.config.db_dirs[i], align_type)
             imgs.extend(self.imgs)
             names.extend(self.names)
             paths.extend(self.paths)
@@ -190,16 +191,17 @@ class FaceTest(object):
         for report in self.reports:
             report()
 
-    def __call__(self, det_net=None):
-        assert len(self.config.core.post_process.test_dirs) == len(self.config.core.post_process.test_prefix), "test_dirs and test_prefix must have same len."
-        for align_type in self.config.core.post_process.align_type:
+    def doTest(self):
+        assert len(self.config.test_dirs) == len(self.config.test_prefix), "test_dirs and test_prefix must have same len."
+        self.config.sample = torch.rand((1, 3, 112, 112))
+        for align_type in self.config.align_type:
             LOG.logI('make DB begin.')
             self.makeDB(align_type)
             LOG.logI('make DB finish..')
             self.reports = []
-            for i in range(len(self.config.core.post_process.test_dirs)):
-                self.faceDet(self.config.core.post_process.test_dirs[i], align_type, det_net)
-                self.faceRec(self.config.core.post_process.test_prefix[i])
+            for i in range(len(self.config.test_dirs)):
+                self.faceDet(self.config.test_dirs[i], align_type)
+                self.faceRec(self.config.test_prefix[i])
             self.printReports()
 
 if __name__ == "__main__":
