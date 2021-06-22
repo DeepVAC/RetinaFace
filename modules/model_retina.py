@@ -2,7 +2,11 @@ import torch
 import torch.nn as nn
 import torchvision.models._utils as _utils
 
-from deepvac.backbones import SSH, FPN, MobileNetV3Large, ResNet50, RegNetSmall, RepVGGASmall
+from deepvac.backbones import FPN, SSH
+from deepvac.backbones.mobilenet import MobileNetV3Large
+from deepvac.backbones.resnet import ResNet50
+from deepvac.backbones.regnet import RegNetSmall
+from deepvac.backbones.repvgg import RepVGGASmall
 
 class ClassHead(nn.Module):
     def __init__(self,inchannels=512,num_anchors=3):
@@ -42,6 +46,9 @@ class RetinaFaceMobileNetBackbone(MobileNetV3Large):
     def __init__(self):
         super(RetinaFaceMobileNetBackbone, self).__init__()
         self.return_layers = [5, 10, 15]
+
+    def initFc(self):
+        self.conv = None
 
     def forward(self, x):
         out = []
@@ -139,9 +146,7 @@ class RetinaFaceRegNetBackbone(RegNetSmall):
         out = []
         index = 1
         x = self.stem(x)
-        #x = self.maxpool(x)
         for i, cur in enumerate([self.s1, self.s2, self.s3, self.s4]):
-            #for j, lay in enumerate(cur):
             x = cur(x)
             if i in self.return_layers:
                 out.append(x)
@@ -150,7 +155,6 @@ class RetinaFaceRegNetBackbone(RegNetSmall):
 class RetinaFaceRegNet(RetinaFaceMobileNet):
     def __init__(self):
         super(RetinaFaceRegNet, self).__init__()
-        #self.device = device
     def auditConfig(self):
         self.in_channels_list = [104, 208, 440]
         self.out_channels = 64
